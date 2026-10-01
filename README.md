@@ -1,7 +1,9 @@
 # Kanban-TODO.TXT
 
-[![todo.txt](https://img.shields.io/badge/format-todo.txt-blue)](https://github.com/todotxt/todo.txt)
+[![fork of chr15m/kanban-todo](https://img.shields.io/badge/fork%20of-chr15m%2Fkanban--todo-black?logo=github&logoColor=white)](https://github.com/chr15m/kanban-todo)
+[![todo.txt](https://img.shields.io/badge/format-todo.txt-green)](https://github.com/todotxt/todo.txt)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![AI-DECLARATION: copilot](https://img.shields.io/badge/䷼%20AI--DECLARATION-copilot-fee2e2?labelColor=fee2e2)](https://ai-declaration.md)
 
 A [todo.txt](https://github.com/todotxt/todo.txt) based kanban board in a single [index.html](./index.html) file.
 
