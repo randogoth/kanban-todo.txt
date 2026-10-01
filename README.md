@@ -7,7 +7,7 @@
 
 A [todo.txt](https://github.com/todotxt/todo.txt) based kanban board in a single [index.html](./index.html) file.
 
-[Download index.html](https://code.randogoth.com/randogoth/kanban-todo.txt/raw/branch/main/index.html) | [Download Zip](https://code.randogoth.com/randogoth/kanban-todo.txt/archive/main.zip)
+[Download index.html](https://raw.githubusercontent.com/randogoth/kanban-todo.txt/main/index.html) | [Download Zip](https://github.com/randogoth/kanban-todo.txt/archive/refs/heads/main.zip)
 
 - Drag-and-drop visual editing of a plain text todo.txt file
 - Compatible with the wider todo.txt ecosystem: [kanto](https://hg.sr.ht/~ser/kanto)'s board mapping, [pter](https://codeberg.org/pter/pter)'s metadata tags
@@ -17,7 +17,7 @@ A [todo.txt](https://github.com/todotxt/todo.txt) based kanban board in a single
 - Two-way binding between UI and text file
 - Great for indie-scale solo projects and small teams
 
-[File format](#file-format) | [CLI Install](#cli-install) | [Agent Skill](#agent-skill) | [Self Host](#self-host) | [Browser Support](#browser-support)
+[File format](#file-format) | [CLI Install](#cli-install) | [Global Install](#global-install) | [Agent Skill](#agent-skill) | [Self Host](#self-host) | [Browser Support](#browser-support)
 
 ## File Format
 
@@ -35,12 +35,12 @@ Yet another task. +project @another-column
 Requires [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
 ```
-curl -O https://code.randogoth.com/randogoth/kanban-todo.txt/raw/branch/main/kbtd.py
+curl -O https://raw.githubusercontent.com/randogoth/kanban-todo.txt/main/kbtd.py
 chmod 755 kbtd.py
 
 # By default `kbtd.py` loads the web app from my server.
 # If self-hosting, set KBTD_URL to load from your server instead:
-# export KBTD_URL="https://code.randogoth.com/randogoth/kanban-todo.txt/raw/branch/main/"
+# export KBTD_URL="https://raw.githubusercontent.com/randogoth/kanban-todo.txt/main/"
 
 # Then launch with:
 ./kbtd.py todo.txt
@@ -48,13 +48,27 @@ chmod 755 kbtd.py
 
 `kbtd.py` runs a small local server (bound to `127.0.0.1`, guarded by a per-launch token) so the app can read and write your file through any browser, not just Chromium-based ones. It blocks in the foreground for the session: close the browser window or hit Ctrl-C to stop it.
 
+## Global Install
+
+To run `kbtd` from any folder, [install.sh](./install.sh) installs `kbtd.py` and `index.html` together and symlinks the script onto your `PATH`:
+
+```
+curl -fsSL https://raw.githubusercontent.com/randogoth/kanban-todo.txt/main/install.sh | bash
+```
+
+Then make sure `~/.local/bin` is on your `PATH`, and run `kbtd todo.txt` from any folder.
+
+`kbtd.py` looks for `index.html` next to its own real location (it resolves the symlink), so keeping both files together like this avoids a network fetch on every launch. Installing just `kbtd.py` alone also works, it falls back to fetching `index.html` from `$KBTD_URL` each time instead.
+
+Override the install location or source with `KBTD_INSTALL_DIR`, `KBTD_BIN_DIR`, or `KBTD_SOURCE_URL` if you'd rather install elsewhere or from your own fork.
+
 ## Agent Skill
 
 [SKILL.md](./SKILL.md) teaches AI coding agents (e.g. Claude Code) how to read, query, and edit a todo.txt file so it stays KBTD-compatible: line format, `@context`/`+project`/`#hashtag` tags, pter metadata tags, priority/completion rules, time tracking. Drop it into any project to make that project's todo.txt agent-manageable:
 
 ```
 mkdir -p .claude/skills/todo-txt-kbtd
-curl -o .claude/skills/todo-txt-kbtd/SKILL.md https://code.randogoth.com/randogoth/kanban-todo.txt/raw/branch/main/SKILL.md
+curl -o .claude/skills/todo-txt-kbtd/SKILL.md https://raw.githubusercontent.com/randogoth/kanban-todo.txt/main/SKILL.md
 ```
 
 ## Self Host

@@ -1,11 +1,11 @@
 ---
 name: todo-txt-kbtd
-description: Teaches how to read, query, and edit a todo.txt task file using the conventions the KBTD kanban board (https://code.randogoth.com/randogoth/kanban-todo.txt) understands: line anatomy, @context columns, +project filters, #hashtag chips, and pter-compatible due/t/id/tracking/spent/pri tags. Use this skill for any task-management request against a todo.txt file, including adding, completing, reprioritizing, moving, time-tracking, or answering questions like "what's overdue", "what's in @work", or "what's untagged", not just hand-editing lines. Install by copying this file into a project's skill directory (e.g. .claude/skills/todo-txt-kbtd/SKILL.md) to make any todo.txt there KBTD-compatible.
+description: Teaches how to read, query, and edit a todo.txt task file using the conventions the KBTD kanban board (https://github.com/randogoth/kanban-todo.txt) understands: line anatomy, @context columns, +project filters, #hashtag chips, and pter-compatible due/t/id/tracking/spent/pri tags. Use this skill for any task-management request against a todo.txt file, including adding, completing, reprioritizing, moving, time-tracking, or answering questions like "what's overdue", "what's in @work", or "what's untagged", not just hand-editing lines. Install by copying this file into a project's skill directory (e.g. .claude/skills/todo-txt-kbtd/SKILL.md) to make any todo.txt there KBTD-compatible.
 ---
 
 # Managing a KBTD-compatible todo.txt
 
-[KBTD](https://code.randogoth.com/randogoth/kanban-todo.txt) is a single-file kanban board that
+[KBTD](https://github.com/randogoth/kanban-todo.txt) is a single-file kanban board that
 renders a `todo.txt` file directly. There's no database, no separate task store. Every card on the
 board is one line in the file, and every drag, checkbox, or edit on the board is a one-line rewrite of
 it. Editing the file by hand (or as an agent) is exactly equivalent to using the UI, as long as each
@@ -172,7 +172,7 @@ in any project with a todo.txt file whether or not the board is installed. If th
 visually check the result and `kbtd.py` isn't already available, it's a single self-contained script:
 
 ```bash
-curl -O https://code.randogoth.com/randogoth/kanban-todo.txt/raw/branch/main/kbtd.py
+curl -O https://raw.githubusercontent.com/randogoth/kanban-todo.txt/main/kbtd.py
 chmod 755 kbtd.py
 ./kbtd.py path/to/todo.txt
 ```
