@@ -944,6 +944,13 @@ chmod 755 kbtd.py
                         </button>
                         <div id="project-select-dropdown" class="project-select-dropdown"></div>
                     </div>
+                    <div class="project-select-container">
+                        <button id="hashtag-select-btn" class="project-select-btn">
+                            <span id="hashtag-select-text">All hashtags</span>
+                            <span>▼</span>
+                        </button>
+                        <div id="hashtag-select-dropdown" class="project-select-dropdown"></div>
+                    </div>
                     <button id="burger-btn" class="burger-btn">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
@@ -1060,6 +1067,7 @@ chmod 755 kbtd.py
         const DB_VERSION = 1;
         const STORE_NAME = 'fileHandles';
         const NO_PROJECT = '\u0000no-project';
+        const NO_HASHTAG = '\u0000no-hashtag';
         const PTER_TAG_KEYS = ['due', 't', 'id', 'tracking', 'spent', 'pri'];
         const COMPLETED_LANE = 'Completed';
 
@@ -1071,6 +1079,7 @@ chmod 755 kbtd.py
             columns: [],
             pendingLanes: [],
             projectFilter: null,
+            hashtagFilter: null,
             showCompleted: true,
             showDeferred: true,
             groupCompleted: false,
@@ -1504,15 +1513,32 @@ chmod 755 kbtd.py
             return [...set].sort();
         }
 
-        function passesFilter(task, filter) {
+        function allHashtags(tasks) {
+            const set = new Set();
+            for (const t of tasks) for (const h of taskHashtags(t)) set.add(h);
+            return [...set].sort();
+        }
+
+        function passesProjectFilter(task, filter) {
             if (filter === null) return true;
             const projects = taskProjects(task);
             if (projects.length === 0) return filter.has(NO_PROJECT);
             return projects.some(p => filter.has(p));
         }
 
-        function buildColumns(tasks, filter, pendingLanes, groupCompleted, showCompleted) {
-            const filtered = tasks.filter(t => passesFilter(t, filter));
+        function passesHashtagFilter(task, filter) {
+            if (filter === null) return true;
+            const hashtags = taskHashtags(task);
+            if (hashtags.length === 0) return filter.has(NO_HASHTAG);
+            return hashtags.some(h => filter.has(h));
+        }
+
+        function passesFilters(task, projectFilter, hashtagFilter) {
+            return passesProjectFilter(task, projectFilter) && passesHashtagFilter(task, hashtagFilter);
+        }
+
+        function buildColumns(tasks, projectFilter, hashtagFilter, pendingLanes, groupCompleted, showCompleted) {
+            const filtered = tasks.filter(t => passesFilters(t, projectFilter, hashtagFilter));
             const order = [];
             const seen = new Set();
             const addIfNew = (name) => { if (!seen.has(name)) { seen.add(name); order.push(name); } };
@@ -1543,9 +1569,9 @@ chmod 755 kbtd.py
         function computeLaneTasks(columnName) {
             let filtered;
             if (state.groupCompleted && columnName === COMPLETED_LANE) {
-                filtered = state.tasks.filter(t => passesFilter(t, state.projectFilter) && t.completed);
+                filtered = state.tasks.filter(t => passesFilters(t, state.projectFilter, state.hashtagFilter) && t.completed);
             } else {
-                filtered = state.tasks.filter(t => passesFilter(t, state.projectFilter) && taskColumn(t) === columnName
+                filtered = state.tasks.filter(t => passesFilters(t, state.projectFilter, state.hashtagFilter) && taskColumn(t) === columnName
                     && (!state.groupCompleted || !t.completed));
             }
             const visible = filtered.filter(t => {
@@ -1777,6 +1803,7 @@ chmod 755 kbtd.py
             const key = `kbtd:${state.filePath}`;
             localStorage.setItem(key, JSON.stringify({
                 projectFilter: state.projectFilter ? [...state.projectFilter] : null,
+                hashtagFilter: state.hashtagFilter ? [...state.hashtagFilter] : null,
                 showCompleted: state.showCompleted,
                 showDeferred: state.showDeferred,
                 groupCompleted: state.groupCompleted
@@ -1805,6 +1832,10 @@ chmod 755 kbtd.py
 
         function closeProjectDropdown() {
             $('#project-select-dropdown').classList.remove('active');
+        }
+
+        function closeHashtagDropdown() {
+            $('#hashtag-select-dropdown').classList.remove('active');
         }
 
         function updateMenuCheckbox(id, value) {
@@ -1872,6 +1903,51 @@ chmod 755 kbtd.py
             );
 
             dropdown.replaceChildren(allItem, h('div', { className: 'project-select-divider' }), ...items, noProjItem);
+        }
+
+        function setHashtagFilter(filter) {
+            state.hashtagFilter = filter;
+            persistUiState();
+            renderBoard();
+        }
+
+        function toggleHashtagFilter(name) {
+            const set = state.hashtagFilter === null ? new Set() : new Set(state.hashtagFilter);
+            if (set.has(name)) set.delete(name); else set.add(name);
+            state.hashtagFilter = set;
+            persistUiState();
+            renderBoard();
+        }
+
+        function renderHashtagFilterDropdown() {
+            const dropdown = $('#hashtag-select-dropdown');
+            const hashtags = allHashtags(state.tasks);
+
+            $('#hashtag-select-text').textContent = state.hashtagFilter === null
+                ? 'All hashtags'
+                : `${state.hashtagFilter.size} hashtag${state.hashtagFilter.size === 1 ? '' : 's'}`;
+
+            const allItem = h('button', {
+                className: `project-select-dropdown-item ${state.hashtagFilter === null ? 'current' : ''}`,
+                textContent: 'All hashtags',
+                onclick: () => setHashtagFilter(null)
+            });
+
+            const items = hashtags.map(tag => {
+                const checked = state.hashtagFilter !== null && state.hashtagFilter.has(tag);
+                return h('button', { className: 'project-select-dropdown-item', onclick: () => toggleHashtagFilter(tag) },
+                    h('div', { className: `burger-menu-checkbox ${checked ? 'checked' : ''}` }),
+                    h('span', { textContent: `#${tag}` })
+                );
+            });
+
+            const noTagChecked = state.hashtagFilter !== null && state.hashtagFilter.has(NO_HASHTAG);
+            const noTagItem = h('button', { className: 'project-select-dropdown-item', onclick: () => toggleHashtagFilter(NO_HASHTAG) },
+                h('div', { className: `burger-menu-checkbox ${noTagChecked ? 'checked' : ''}` }),
+                h('span', { textContent: '(no hashtag)' })
+            );
+
+            dropdown.replaceChildren(allItem, h('div', { className: 'project-select-divider' }), ...items, noTagItem);
         }
 
         // --- set-project modal ---
@@ -2168,8 +2244,9 @@ chmod 755 kbtd.py
         }
 
         function renderBoard() {
-            state.columns = buildColumns(state.tasks, state.projectFilter, state.pendingLanes, state.groupCompleted, state.showCompleted);
+            state.columns = buildColumns(state.tasks, state.projectFilter, state.hashtagFilter, state.pendingLanes, state.groupCompleted, state.showCompleted);
             renderProjectFilterDropdown();
+            renderHashtagFilterDropdown();
             updateMenuCheckbox('completed-checkbox', state.showCompleted);
             updateMenuCheckbox('deferred-checkbox', state.showDeferred);
             updateMenuCheckbox('group-completed-checkbox', state.groupCompleted);
@@ -2397,6 +2474,9 @@ chmod 755 kbtd.py
             if (!e.target.closest('.project-select-dropdown') && !e.target.closest('#project-select-btn')) {
                 closeProjectDropdown();
             }
+            if (!e.target.closest('.project-select-dropdown') && !e.target.closest('#hashtag-select-btn')) {
+                closeHashtagDropdown();
+            }
             if (e.target.id === 'about-modal' && modalMousedownTarget && modalMousedownTarget.id === 'about-modal') {
                 aboutModal.close();
             }
@@ -2424,6 +2504,7 @@ chmod 755 kbtd.py
                         try {
                             const ui = JSON.parse(stored);
                             state.projectFilter = ui.projectFilter ? new Set(ui.projectFilter) : null;
+                            state.hashtagFilter = ui.hashtagFilter ? new Set(ui.hashtagFilter) : null;
                             if (ui.showCompleted !== undefined) state.showCompleted = ui.showCompleted;
                             if (ui.showDeferred !== undefined) state.showDeferred = ui.showDeferred;
                             if (ui.groupCompleted !== undefined) state.groupCompleted = ui.groupCompleted;
@@ -2661,6 +2742,10 @@ chmod 755 kbtd.py
 
             $('#project-select-btn').onclick = () => {
                 $('#project-select-dropdown').classList.toggle('active');
+            };
+
+            $('#hashtag-select-btn').onclick = () => {
+                $('#hashtag-select-dropdown').classList.toggle('active');
             };
 
             $('#set-project-cancel-btn').onclick = () => setProjectModal.close();
