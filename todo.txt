@@ -1,7 +1,7 @@
-Automation option to move to 'done' column when checked +main-project @backlog
-Minimize the number of times the user is asked for access. +main-project @backlog
-Remove serviceworker Blob registration +main-project @todo
-x 2026-10-01 Display sub-lines of the form `key: value` immediately after item +main-project @done
+(A) Automation option to move to 'done' column when checked +main-project @progress
+Minimize the number of times the user is asked for access. +main-project @done spent:1m
+Remove serviceworker Blob registration +main-project @progress #random
+Display sub-lines of the form `key: value` immediately after item +main-project +other @progress
 x 2026-10-01 Project list pulldown in top right +main-project @done
 x 2026-10-01 Make it a proper PWA with the minimal-pwa technique +main-project @done
 x 2026-10-01 Extract and consolidate indent detection functions +main-project @done

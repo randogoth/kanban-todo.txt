@@ -2,3 +2,4 @@
 .*.swp
 .*-chrome-data
 .context
+__pycache__/

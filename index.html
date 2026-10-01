@@ -393,6 +393,12 @@
             white-space: nowrap;
         }
 
+        .badge-priority {
+            font-weight: bold;
+            min-width: 1.4em;
+            text-align: center;
+        }
+
         .badge-due.alert {
             color: #f80;
             border-color: #f80;
@@ -860,26 +866,26 @@
             <li>Compatible with the wider todo.txt ecosystem (kanto, pter, todo.sh)</li>
             <li>Runs 100% in your browser - no server, no database</li>
             <li>Single HTML file - upload to self-host</li>
-            <li>CLI tool to launch as a Chrome app: <code>kbtd todo.txt</code></li>
+            <li>CLI tool to launch as an app window in any browser: <code>kbtd.py todo.txt</code></li>
             <li>Two-way binding between UI and text file</li>
             <li>Great for indie-scale solo projects and small teams</li>
         </ul>
     </template>
 
     <template id="footer-content-template">
-        <p><a href="https://github.com/chr15m/kanban-todo/blob/main/README.md" target="_blank">See README.md for more info.</a></p>
+        <p><a href="https://code.randogoth.com/randogoth/kanban-todo.txt/src/branch/main/README.md" target="_blank">See README.md for more info.</a></p>
     </template>
 
     <template id="install-instructions-template">
-        <p>Install launch script:</p>
-        <pre>curl -O <a href="https://mccormick.cx/apps/kanban-todo/kbtd">https://mccormick.cx/apps/kanban-todo/kbtd</a>
-chmod 755 kbtd
+        <p>Install launch script (requires <a href="https://docs.astral.sh/uv/getting-started/installation/" target="_blank">uv</a>):</p>
+        <pre>curl -O <a href="https://mccormick.cx/apps/kanban-todo/kbtd.py">https://mccormick.cx/apps/kanban-todo/kbtd.py</a>
+chmod 755 kbtd.py
 
 # If self-hosting, set KBTD_URL to point at your URL:
-# export KBTD_URL="<span class="current-url">https://mccormick.cx/apps/kanban-todo/kbtd</span>"
+# export KBTD_URL="<span class="current-url">https://mccormick.cx/apps/kanban-todo/</span>"
 
 # Then launch with:
-./kbtd todo.txt</pre>
+./kbtd.py todo.txt</pre>
     </template>
 
     <template id="project-selection-template">
@@ -897,8 +903,8 @@ chmod 755 kbtd
     </template>
 
     <template id="source-copyright-template">
-        <p><a href="https://github.com/chr15m/kanban-todo" target="_blank">Source code for self-hosting</a> - upload index.html to your server.</p>
-        <p>Copyright &copy; Chris McCormick 2025</p>
+        <p><a href="https://code.randogoth.com/randogoth/kanban-todo.txt" target="_blank">Source code for self-hosting</a> - upload index.html to your server.</p>
+        <p>Copyright &copy; Chris McCormick 2025 (original idea and Markdown-based app).<br>todo.txt rewrite and further changes copyright &copy; randogoth 2026.</p>
     </template>
 
     <div id="app">
@@ -953,6 +959,10 @@ chmod 755 kbtd
                         <button class="burger-menu-item" id="toggle-deferred-menu-item">
                             <div class="burger-menu-checkbox" id="deferred-checkbox"></div>
                             <span>Show deferred</span>
+                        </button>
+                        <button class="burger-menu-item" id="toggle-group-completed-menu-item">
+                            <div class="burger-menu-checkbox" id="group-completed-checkbox"></div>
+                            <span>Completed column</span>
                         </button>
                         <button class="burger-menu-item" id="change-file-menu-item">
                             <span>Change file</span>
@@ -1051,8 +1061,10 @@ chmod 755 kbtd
         const STORE_NAME = 'fileHandles';
         const NO_PROJECT = '\u0000no-project';
         const PTER_TAG_KEYS = ['due', 't', 'id', 'tracking', 'spent', 'pri'];
+        const COMPLETED_LANE = 'Completed';
 
         let state = {
+            backend: null,
             fileHandle: null,
             filePath: null,
             tasks: [],
@@ -1061,6 +1073,7 @@ chmod 755 kbtd
             projectFilter: null,
             showCompleted: true,
             showDeferred: true,
+            groupCompleted: false,
             lastModified: 0
         };
 
@@ -1432,6 +1445,10 @@ chmod 755 kbtd
             return [...task.body.matchAll(/(?:^|\s)@(\S+)/g)].map(m => m[1]);
         }
 
+        function taskHashtags(task) {
+            return [...task.body.matchAll(/(?:^|\s)#(\S+)/g)].map(m => m[1]);
+        }
+
         function taskTags(task) {
             const known = new Set(PTER_TAG_KEYS);
             return [...task.body.matchAll(/(?:^|\s)([A-Za-z0-9_]+):(\S+)/g)]
@@ -1443,6 +1460,7 @@ chmod 755 kbtd
             return task.body
                 .replace(/(?:^|\s)\+\S+/g, '')
                 .replace(/(?:^|\s)@\S+/g, '')
+                .replace(/(?:^|\s)#\S+/g, '')
                 .replace(/(?:^|\s)[A-Za-z0-9_]+:\S+/g, '')
                 .replace(/\s+/g, ' ')
                 .trim();
@@ -1455,6 +1473,13 @@ chmod 755 kbtd
 
         function sortPriority(task) {
             return task.completed ? getTag(task.body, 'pri') : task.priority;
+        }
+
+        const PRIORITY_COLORS = ['#d64545', '#d87f33', '#d4af1a', '#3fa860', '#3b82c4', '#8e6fc2'];
+
+        function priorityColor(letter) {
+            const idx = letter.charCodeAt(0) - 65;
+            return PRIORITY_COLORS[idx] || null;
         }
 
         function isDeferred(task) {
@@ -1486,14 +1511,19 @@ chmod 755 kbtd
             return projects.some(p => filter.has(p));
         }
 
-        function buildColumns(tasks, filter, pendingLanes) {
+        function buildColumns(tasks, filter, pendingLanes, groupCompleted, showCompleted) {
             const filtered = tasks.filter(t => passesFilter(t, filter));
             const order = [];
             const seen = new Set();
             const addIfNew = (name) => { if (!seen.has(name)) { seen.add(name); order.push(name); } };
             filtered.filter(t => !t.completed).forEach(t => addIfNew(taskColumn(t)));
-            filtered.filter(t => t.completed).forEach(t => addIfNew(taskColumn(t)));
+            if (!groupCompleted) {
+                filtered.filter(t => t.completed).forEach(t => addIfNew(taskColumn(t)));
+            }
             (pendingLanes || []).forEach(addIfNew);
+            if (groupCompleted && showCompleted && filtered.some(t => t.completed)) {
+                addIfNew(COMPLETED_LANE);
+            }
             return order;
         }
 
@@ -1511,7 +1541,13 @@ chmod 755 kbtd
         }
 
         function computeLaneTasks(columnName) {
-            const filtered = state.tasks.filter(t => passesFilter(t, state.projectFilter) && taskColumn(t) === columnName);
+            let filtered;
+            if (state.groupCompleted && columnName === COMPLETED_LANE) {
+                filtered = state.tasks.filter(t => passesFilter(t, state.projectFilter) && t.completed);
+            } else {
+                filtered = state.tasks.filter(t => passesFilter(t, state.projectFilter) && taskColumn(t) === columnName
+                    && (!state.groupCompleted || !t.completed));
+            }
             const visible = filtered.filter(t => {
                 if (!state.showCompleted && t.completed) return false;
                 if (!state.showDeferred && isDeferred(t)) return false;
@@ -1524,6 +1560,75 @@ chmod 755 kbtd
             return state.tasks.find(t => t.lineNumber === lineNumber);
         }
 
+        // --- backends ---
+
+        const FsaBackend = {
+            supportsBookmarks: true,
+            async read() {
+                const file = await state.fileHandle.getFile();
+                return { text: await file.text(), version: file.lastModified };
+            },
+            async write(text) {
+                const writable = await state.fileHandle.createWritable();
+                await writable.write(text);
+                await writable.close();
+                const file = await state.fileHandle.getFile();
+                return { version: file.lastModified };
+            },
+            watch(onChange) {
+                setInterval(async () => {
+                    if (!state.fileHandle) return;
+                    try {
+                        const file = await state.fileHandle.getFile();
+                        if (file.lastModified > state.lastModified) onChange();
+                    } catch (e) {
+                        console.error('Polling error:', e);
+                    }
+                }, 250);
+            }
+        };
+
+        const HttpBackend = {
+            supportsBookmarks: false,
+            token: new URLSearchParams(window.location.search).get('token'),
+            _headers(extra) {
+                return Object.assign({ 'X-Kbtd-Token': this.token }, extra);
+            },
+            async read() {
+                const res = await fetch('/file', { headers: this._headers() });
+                if (!res.ok) throw new Error(`GET /file: ${res.status}`);
+                return { text: await res.text(), version: res.headers.get('ETag') };
+            },
+            async write(text, baseVersion) {
+                const res = await fetch('/file', {
+                    method: 'PUT',
+                    headers: this._headers({ 'If-Match': baseVersion || '' }),
+                    body: text
+                });
+                if (res.status === 412) {
+                    const err = new Error('File changed on disk');
+                    err.conflict = true;
+                    throw err;
+                }
+                if (!res.ok) throw new Error(`PUT /file: ${res.status}`);
+                return { version: res.headers.get('ETag') };
+            },
+            watch(onChange) {
+                setInterval(async () => {
+                    try {
+                        const res = await fetch('/file', { method: 'HEAD', headers: this._headers() });
+                        if (res.ok && res.headers.get('ETag') !== state.lastModified) onChange();
+                    } catch (e) {
+                        console.error('Polling error:', e);
+                    }
+                }, 250);
+            }
+        };
+
+        function selectBackend() {
+            return new URLSearchParams(window.location.search).has('token') ? HttpBackend : FsaBackend;
+        }
+
         // --- file I/O ---
 
         function reloadFromText(text) {
@@ -1531,26 +1636,27 @@ chmod 755 kbtd
             renderBoard();
         }
 
-        async function writeFile(text) {
+        async function writeFile(text, baseVersion) {
             try {
                 reloadFromText(text);
-                const writable = await state.fileHandle.createWritable();
-                await writable.write(text);
-                await writable.close();
-                const file = await state.fileHandle.getFile();
-                state.lastModified = file.lastModified;
+                const { version } = await state.backend.write(text, baseVersion);
+                state.lastModified = version;
             } catch (err) {
                 console.error('Error writing file:', err);
-                alert('Error saving file.');
+                if (err.conflict) {
+                    alert('This file changed on disk since it was loaded. Reloading the latest version — please redo your change.');
+                    await loadFile();
+                } else {
+                    alert('Error saving file.');
+                }
             }
         }
 
         async function modifyFileLines(fn) {
-            const file = await state.fileHandle.getFile();
-            const text = await file.text();
+            const { text, version } = await state.backend.read();
             const lines = text.split('\n');
             fn(lines);
-            await writeFile(lines.join('\n'));
+            await writeFile(lines.join('\n'), version);
         }
 
         // --- mutations ---
@@ -1617,6 +1723,10 @@ chmod 755 kbtd
         }
 
         async function createTaskInColumn(columnName, text) {
+            if (state.groupCompleted && columnName === COMPLETED_LANE) {
+                await createTask(`x ${todayStr()} ${text}`);
+                return;
+            }
             const body = columnName === 'Queue' ? text : `${text} @${columnName}`;
             await createTask(body);
         }
@@ -1630,10 +1740,27 @@ chmod 755 kbtd
             });
         }
 
-        async function applyDrop(lineNumber, newContext, newPriority) {
+        async function applyDrop(lineNumber, newContext, newPriority, newCompleted) {
             await modifyFileLines(lines => {
                 const task = parseTask(lines[lineNumber], lineNumber);
                 if (newContext !== undefined) task.body = applyContext(task.body, newContext);
+                if (newCompleted !== undefined && newCompleted !== task.completed) {
+                    task.completed = newCompleted;
+                    if (newCompleted) {
+                        task.completionDate = todayStr();
+                        if (task.priority) {
+                            task.body = setTag(task.body, 'pri', task.priority);
+                            task.priority = null;
+                        }
+                    } else {
+                        const pri = getTag(task.body, 'pri');
+                        if (pri) {
+                            task.priority = pri;
+                            task.body = removeTag(task.body, 'pri');
+                        }
+                        task.completionDate = null;
+                    }
+                }
                 if (task.completed) {
                     task.body = newPriority ? setTag(task.body, 'pri', newPriority) : removeTag(task.body, 'pri');
                 } else {
@@ -1651,7 +1778,8 @@ chmod 755 kbtd
             localStorage.setItem(key, JSON.stringify({
                 projectFilter: state.projectFilter ? [...state.projectFilter] : null,
                 showCompleted: state.showCompleted,
-                showDeferred: state.showDeferred
+                showDeferred: state.showDeferred,
+                groupCompleted: state.groupCompleted
             }));
         }
 
@@ -1691,6 +1819,12 @@ chmod 755 kbtd
 
         function toggleShowDeferred() {
             state.showDeferred = !state.showDeferred;
+            persistUiState();
+            renderBoard();
+        }
+
+        function toggleGroupCompleted() {
+            state.groupCompleted = !state.groupCompleted;
             persistUiState();
             renderBoard();
         }
@@ -1752,7 +1886,7 @@ chmod 755 kbtd
                 ...allProjects(state.tasks).map(p => h('option', { value: p }))
             );
             const currentColumn = taskColumn(task);
-            const options = [...state.columns];
+            const options = state.columns.filter(c => !(state.groupCompleted && c === COMPLETED_LANE));
             if (!options.includes('Queue')) options.push('Queue');
             if (!options.includes(currentColumn)) options.push(currentColumn);
             $('#set-project-column-select').replaceChildren(
@@ -1916,6 +2050,7 @@ chmod 755 kbtd
             const projects = taskProjects(task);
             const contexts = taskContexts(task);
             const extraContexts = contexts.slice(1);
+            const hashtags = taskHashtags(task);
             const tags = taskTags(task);
             const priority = sortPriority(task);
             const due = getTag(task.body, 'due');
@@ -2003,11 +2138,19 @@ chmod 755 kbtd
 
             const chips = [];
             projects.forEach(p => chips.push(h('span', { className: 'chip chip-project', textContent: `+${p}` })));
+            hashtags.forEach(tag => chips.push(h('span', { className: 'chip chip-hashtag', textContent: `#${tag}` })));
             extraContexts.forEach(c => chips.push(h('span', { className: 'chip chip-context', textContent: `@${c}` })));
             tags.forEach(t => chips.push(h('span', { className: 'chip chip-tag', textContent: `${t.key}:${t.value}` })));
 
             const badges = [];
-            if (priority) badges.push(h('span', { className: 'badge badge-priority', textContent: `(${priority})` }));
+            if (priority) {
+                const color = priorityColor(priority);
+                badges.push(h('span', {
+                    className: 'badge badge-priority',
+                    textContent: priority,
+                    style: color ? { background: color, borderColor: color, color: '#fff' } : {}
+                }));
+            }
             if (due) badges.push(h('span', { className: `badge badge-due ${overdue ? 'alert' : ''}`, textContent: `due ${due}` }));
             if (deferred) badges.push(h('span', { className: 'badge badge-deferred', textContent: `starts ${getTag(task.body, 't')}` }));
             if (spent) badges.push(h('span', { className: 'badge badge-spent', textContent: `spent ${spent}` }));
@@ -2025,10 +2168,11 @@ chmod 755 kbtd
         }
 
         function renderBoard() {
-            state.columns = buildColumns(state.tasks, state.projectFilter, state.pendingLanes);
+            state.columns = buildColumns(state.tasks, state.projectFilter, state.pendingLanes, state.groupCompleted, state.showCompleted);
             renderProjectFilterDropdown();
             updateMenuCheckbox('completed-checkbox', state.showCompleted);
             updateMenuCheckbox('deferred-checkbox', state.showDeferred);
+            updateMenuCheckbox('group-completed-checkbox', state.groupCompleted);
 
             currentLanes = {};
             const container = $('#board-container');
@@ -2209,6 +2353,7 @@ chmod 755 kbtd
             }
 
             const targetColumnName = state.columns[targetColIndex];
+            const sourceColumnName = state.columns[sourceColIndex];
             const laneTasks = currentLanes[targetColumnName] || [];
             const origIndex = laneTasks.findIndex(t => t.lineNumber === sourceLineNumber);
             const effectivePosition = (origIndex !== -1 && targetPosition > origIndex) ? targetPosition - 1 : targetPosition;
@@ -2216,10 +2361,23 @@ chmod 755 kbtd
             const prev = effectivePosition > 0 ? withoutDragged[effectivePosition - 1] : null;
             const next = withoutDragged[effectivePosition] || null;
 
-            const newPriority = prev ? sortPriority(prev) : (next ? sortPriority(next) : null);
-            const newContext = sourceColIndex === targetColIndex ? undefined : targetColumnName;
+            // Inherit the priority of the card below the drop point, not above it -
+            // otherwise dropping a plain card just under a prio-A one promotes it to A
+            // even though it's clearly being placed among the unprioritised cards below.
+            const newPriority = next ? sortPriority(next) : (prev ? sortPriority(prev) : null);
 
-            await applyDrop(sourceLineNumber, newContext, newPriority);
+            let newContext;
+            let newCompleted;
+            if (state.groupCompleted && targetColumnName === COMPLETED_LANE) {
+                newCompleted = true;
+            } else if (state.groupCompleted && sourceColumnName === COMPLETED_LANE) {
+                newCompleted = false;
+                newContext = targetColumnName;
+            } else {
+                newContext = sourceColIndex === targetColIndex ? undefined : targetColumnName;
+            }
+
+            await applyDrop(sourceLineNumber, newContext, newPriority, newCompleted);
             dragState.source = null;
         }
 
@@ -2256,9 +2414,8 @@ chmod 755 kbtd
 
         async function loadFile() {
             try {
-                const file = await state.fileHandle.getFile();
-                state.lastModified = file.lastModified;
-                const text = await file.text();
+                const { text, version } = await state.backend.read();
+                state.lastModified = version;
                 state.tasks = parseTodoTxt(text);
 
                 if (state.filePath) {
@@ -2269,6 +2426,7 @@ chmod 755 kbtd
                             state.projectFilter = ui.projectFilter ? new Set(ui.projectFilter) : null;
                             if (ui.showCompleted !== undefined) state.showCompleted = ui.showCompleted;
                             if (ui.showDeferred !== undefined) state.showDeferred = ui.showDeferred;
+                            if (ui.groupCompleted !== undefined) state.groupCompleted = ui.groupCompleted;
                         } catch (e) { console.error(e); }
                     }
                 }
@@ -2281,17 +2439,7 @@ chmod 755 kbtd
         }
 
         function startPolling() {
-            setInterval(async () => {
-                if (!state.fileHandle) return;
-                try {
-                    const file = await state.fileHandle.getFile();
-                    if (file.lastModified > state.lastModified) {
-                        await loadFile();
-                    }
-                } catch (e) {
-                    console.error('Polling error:', e);
-                }
-            }, 250);
+            state.backend.watch(loadFile);
         }
 
         async function openRecentProject(projectName) {
@@ -2386,14 +2534,26 @@ chmod 755 kbtd
 
             setupEventHandlers();
 
+            state.backend = selectBackend();
+            const params = new URLSearchParams(window.location.search);
+            state.filePath = params.get('file');
+
+            if (state.backend === HttpBackend) {
+                try {
+                    await loadFile();
+                    startPolling();
+                } catch (err) {
+                    console.error(err);
+                    alert('Could not load file from kbtd server.');
+                }
+                return;
+            }
+
             if (!checkFileSystemAccessAPI()) {
                 $('#api-warning').style.display = 'block';
                 $('#about-api-warning').style.display = 'block';
                 $('#open-file-btn').disabled = true;
             }
-
-            const params = new URLSearchParams(window.location.search);
-            state.filePath = params.get('file');
 
             if (!state.filePath) {
                 await renderRecentProjects();
@@ -2484,6 +2644,7 @@ chmod 755 kbtd
 
             $('#toggle-completed-menu-item').onclick = () => toggleShowCompleted();
             $('#toggle-deferred-menu-item').onclick = () => toggleShowDeferred();
+            $('#toggle-group-completed-menu-item').onclick = () => toggleGroupCompleted();
 
             $('#change-file-menu-item').onclick = () => {
                 closeBurgerMenu();

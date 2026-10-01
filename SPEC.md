@@ -1,10 +1,6 @@
-# KBTD - Kanban TODO
+# Kanban todo.txt
 
-A minimal Kanban board web app that uses a [todo.txt](https://github.com/todotxt/todo.txt) file as its data store, compatible with the wider todo.txt ecosystem ([kanto](https://hg.sr.ht/~ser/kanto)'s board mapping, [pter](https://codeberg.org/pter/pter)'s metadata tags).
-
-## Overview
-
-KBTD presents a Kanban board interface for managing tasks stored in a standard todo.txt file. The file is the canonical data store — the app provides a visual interface for viewing and manipulating it. There is one board per file; projects are a filter over that single board, not separate boards.
+A minimal Kanban board web app that presents a [todo.txt](https://github.com/todotxt/todo.txt) file as a drag-and-drop board, compatible with the wider todo.txt ecosystem ([kanto](https://hg.sr.ht/~ser/kanto)'s board mapping, and some of [pter](https://codeberg.org/pter/pter)'s metadata tags). The file is the canonical data store: every mutation rewrites one line, and the app re-reads and re-parses the file after every write, so the UI always reflects exactly what's on disk. There is one board per file; projects are a filter over that single board, not separate boards.
 
 ## Core Concepts
 
@@ -49,96 +45,48 @@ A task line tokenises as `[x] [completion-date] [(priority)] [creation-date] <bo
 
 ## Architecture
 
-### Components
+Two components: the `kbtd.py` launcher (resolves the file, finds/launches a browser, runs a loopback HTTP server) and `index.html` (the entire web app).
 
-1. **Shell script (`kbtd`)** - Cross-platform launcher
-2. **Single HTML file (`index.html`)** - The entire web application
+`index.html` talks to the file through one of two interchangeable backends, selected once at startup by whether a `token` URL parameter is present:
 
-### Data Flow
-
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  todo.txt   │◄───►│  Web App    │◄───►│ localStorage│
-│  (file)     │     │  (browser)  │     │ (UI state)  │
-└─────────────┘     └─────────────┘     └─────────────┘
-      │                    │
-      │   File System      │   IndexedDB
-      │   Access API       │   (FileHandle)
-      │                    │
-      └────────────────────┘
-```
+- **`FsaBackend`** — the browser's File System Access API (`showOpenFilePicker`, `FileSystemFileHandle`, permission re-grant on reload). Used when `index.html` is opened directly with no `kbtd.py` (e.g. a self-hosted static copy, bookmarked by the user). Chromium-only. First launch shows a landing page / file picker; a FileSystemFileHandle is then stored in IndexedDB (`kbtd` DB, `fileHandles` store, keyed by file path) so later launches skip straight to a permission check.
+- **`HttpBackend`** — talks to `kbtd.py`'s local HTTP server (`GET`/`HEAD`/`PUT /file`) instead of a browser file API. Used whenever the app is launched via `kbtd.py`, in every browser including Chromium — one code path, no permission screen, no stored-handle bookkeeping, since each `kbtd.py` launch is already scoped to one file and the server has direct OS-level file access.
 
 ### State Management
 
-- **File state**: The todo.txt file is the source of truth for task data
-- **UI state**: localStorage stores project filter and show-completed/show-deferred toggles, keyed by file path
-- **File handle**: IndexedDB stores the FileSystemFileHandle for persistence across sessions
+- **File state**: the todo.txt file is the source of truth for task data
+- **UI state**: localStorage, keyed by file path (`kbtd:${filePath}`), stores the project filter and the show-completed/show-deferred/group-completed toggles:
+  ```json
+  { "projectFilter": ["website"], "showCompleted": true, "showDeferred": true, "groupCompleted": false }
+  ```
+  `projectFilter: null` means all projects; `(no project)` is a reserved sentinel string, not a real project name.
 - **Session-only state**: a column created via "Add column" before any task uses it lives only in memory (`state.pendingLanes`) until a task lands in it, or vanishes on reload
-
-#### localStorage Schema
-
-Key: `kbtd:${filePath}`
-
-```json
-{
-  "projectFilter": ["website"],
-  "showCompleted": true,
-  "showDeferred": true
-}
-```
-
-`projectFilter: null` means all projects. A `(no project)` entry in the filter is represented by a reserved sentinel string, not a real project name.
-
-#### IndexedDB Schema
-
-Database: `kbtd`
-Object Store: `fileHandles`
-Key: file path from URL query string
-Value: FileSystemFileHandle
 
 ## User Interface
 
-### States
-
-1. **No file associated**: Shows file picker button and instructions
-2. **Permission needed**: Shows button to re-grant permission (after page reload)
-3. **File not found**: Shows error message if the file doesn't exist
-4. **Kanban board**: Shows columns and cards directly — there is no separate board-picker screen
-
-### Kanban Board Features
-
-- Columns displayed horizontally, derived from the file (see Parsing Rules)
-- Cards displayed vertically within columns, sorted by priority
-- Drag and drop within a column sets the dragged card's priority letter (inherited from its new neighbours)
+- Columns displayed horizontally, derived from the file (see Parsing Rules); cards sorted by priority within each column
+- Drag and drop within a column sets the dragged card's priority letter (inherited from the card *below* the drop point, falling back to the one above at the bottom of a list)
 - Drag and drop across columns rewrites the card's `@context` and sets its priority together, in one write
-- Card face shows title, `+project` chips, priority/due/spent/tracking badges, an `id:` chip and chips for any other tags
+- "Completed column" toggle: pools every completed task into a synthetic rightmost column instead of leaving it in its `@context` lane; dragging into it marks a card complete, dragging out marks it incomplete and files it under the target column
+- Card face shows title, `+project`/`#hashtag` chips, priority/due/spent/tracking badges, an `id:` chip and chips for any other tags
 - Header project filter is a multi-select checklist (OR across selected projects), plus a `(no project)` entry
 - Card menu: Completed, Set project..., Start/Stop tracking, Assign ID, Delete
 - Card detail modal: free-text body, priority, due date, start (`t:`) date, spent, start/stop tracking, ID
 
 ## File Synchronization
 
-### Polling
+- Polling every 250ms: `FsaBackend` compares `file.lastModified`; `HttpBackend` compares the `/file` endpoint's `ETag` via `HEAD`. On change, reload, re-derive columns, re-render
+- Every mutation is a single-line edit; other lines are never rewritten. `FsaBackend` writes via `FileSystemFileHandle.createWritable()`; `HttpBackend` writes via `PUT /file` with an `If-Match` header carrying the ETag last read
+- Conflict resolution: `FsaBackend` has none — last write wins, external changes blow away app state. `HttpBackend` rejects a stale `If-Match` with `412 Precondition Failed`; the app reloads the latest version from disk and shows a message rather than silently losing the edit
 
-- Poll file every 250ms using `file.lastModified`
-- On change detected: reload file, re-derive columns, re-render UI
+## Launcher (`kbtd.py`)
 
-### Write Strategy
-
-- Every mutation is a single-line edit via `modifyFileLines`; other lines are never rewritten
-- Use `FileSystemFileHandle.createWritable()` for atomic writes
-- After every write, the app re-reads and re-parses the file, so the UI always reflects exactly what's on disk
-
-### Conflict Resolution
-
-None. Last write wins. External changes blow away app state.
-
-## Shell Script (`kbtd`)
+A single-file Python script, run via `uv run --script` (PEP 723 inline metadata). Its one dependency, `certifi`, is declared inline and resolved automatically by `uv` — no manual install step. (It's needed because `uv`'s managed Python builds don't reliably see the OS trust store on every platform, notably Nix.)
 
 ### Usage
 
 ```bash
-kbtd [OPTIONS] <path-to-todo.txt-file>
+kbtd.py [OPTIONS] <path-to-todo.txt-file>
 
 Options:
   --browser    Open in existing browser instead of app mode
@@ -147,99 +95,35 @@ Options:
 
 ### Behavior
 
-1. Resolve the todo.txt file path to absolute path
-2. Locate a Chromium-based browser (Chrome, Chromium, Edge)
-3. Determine mode:
-   - Default: `--app` mode with isolated `--user-data-dir` in current directory
-   - With `--browser`: open in existing browser instance with `--new-window`
-4. Launch browser with URL: `{base_url}?file={absolute_path}`
+1. Resolve the todo.txt file path to an absolute path, creating it if missing (and its parent directory exists)
+2. Load `index.html`: if a copy sits next to `kbtd.py` itself (e.g. a repo checkout), read it directly; otherwise fetch it from `$KBTD_URL` (default: the public hosted copy — accepts either a directory or a full URL ending in `.html`) — fails with a clear error if unreachable
+3. Start a loopback HTTP server on `127.0.0.1` (OS-assigned port), guarded by a per-launch random token, and print its URL
+4. Locate a browser (Chromium family, Firefox, or Safari) and launch it pointed at `http://127.0.0.1:{port}/?file={absolute_path}&token={token}`. If none is auto-detected, this is **not fatal** — the server keeps running and the printed URL can be opened manually in any browser
+5. Block in the foreground: in `--app` mode (with a detected browser), until that browser window closes; otherwise until the server idles out (10 minutes with no `/file` requests) or Ctrl-C
+
+### Server Endpoints
+
+| Route | Auth | Behavior |
+|---|---|---|
+| `GET /` | none | Serves the fetched `index.html` bytes |
+| `GET`/`HEAD /file` | `X-Kbtd-Token` header | Returns the file's current bytes and a content-hash `ETag`; `404` if missing |
+| `PUT /file` | `X-Kbtd-Token` header, `If-Match` | Writes atomically (temp file + `os.replace`) if `If-Match` matches the current `ETag`; `412` otherwise |
+
+Any other route is `404`. The server never derives a filesystem path from a request — it only ever touches the one path resolved at startup, so there is no path-traversal surface.
+
+### Security Model
+
+Threat model is other local processes/pages on the same machine, not remote attackers:
+
+- Binds `127.0.0.1` only — no network-reachable surface
+- Per-launch random token (`secrets.token_urlsafe(24)`) required via the custom header `X-Kbtd-Token` on every `/file` request. A cross-origin page can't attach a custom header without triggering a CORS preflight, which the server fails (no `Access-Control-Allow-Origin`) — this also covers DNS-rebinding variants, since the preflight's `Origin` reflects the real page origin regardless of which IP it resolved to
+- `GET /` is intentionally unauthenticated (static public markup; also the only route reachable before the token is known, since it arrives in that page's own URL)
+- Random OS-assigned port per launch, plus the idle-timeout shutdown, bound the window during which a port-scan-plus-token-guess is relevant
+- Not defended against (accepted): another process running as the *same OS user* reading the token from `ps aux` or browser history — the file's absolute path is exposed the same way already, via the URL and the browser's own argv
 
 ### Browser Detection
 
-Check in order:
-1. `$BROWSER` environment variable (if Chromium-based)
-2. `google-chrome` / `chromium` / `chromium-browser` / `microsoft-edge` in PATH
-3. macOS: `/Applications/Google Chrome.app/...`, `/Applications/Chromium.app/...`, `/Applications/Microsoft Edge.app/...`
-4. WSL: `/mnt/c/Program Files/Google/Chrome/Application/chrome.exe`, etc.
-
-If no Chromium browser found: exit with error message explaining requirement.
-
-### URL Configuration
-
-- Development: `http://localhost:8000`
-- Production: Configurable via `$KBTD_URL` environment variable or hardcoded default
-
-## Web App Behavior
-
-### Startup Flow
-
-```
-1. Parse ?file= from URL query string
-2. If no file param:
-   → Show landing page with instructions and script download link
-3. Check IndexedDB for stored FileHandle for this file path
-4. If handle exists:
-   → Check permission with queryPermission()
-   → If "granted": proceed to load file
-   → If "prompt": show "Grant Access" button
-   → If "denied": show file picker
-5. If no handle:
-   → Show file picker button
-6. On file picker success:
-   → Store handle in IndexedDB
-   → Load and parse file, show board directly
-```
-
-### File Picker
-
-```javascript
-const [fileHandle] = await window.showOpenFilePicker({
-  id: 'kbtd-todo-file',
-  mode: 'readwrite',
-  types: [{
-    description: 'todo.txt files',
-    accept: { 'text/plain': ['.txt'] }
-  }]
-});
-```
-
-### Permission Re-grant
-
-After page reload, stored handles return `"prompt"` for permission state. User must click a button to trigger:
-
-```javascript
-const permission = await fileHandle.requestPermission({ mode: 'readwrite' });
-```
-
-This requires a user gesture (button click).
-
-## Browser Compatibility
-
-**Required**: Chromium-based browser (Chrome 86+, Edge 86+, Opera 72+)
-
-**Not supported**: Firefox, Safari (File System Access API not implemented). See "Out of scope" below for the planned HTTP-backend follow-up that would lift this restriction.
-
-## File Structure
-
-```
-kbtd/
-├── index.html      # Complete web application (single file)
-├── kbtd            # Shell script launcher
-└── SPEC.md         # This specification
-```
-
-## Architecture Principles
-
-### Source of Truth
-
-The todo.txt file is the **only** source of truth. The Kanban UI is purely a renderer and editor for the file. There is no separate application state that needs to be "synced" with the file.
-
-### Data Flow
-
-```
-File Change → Read File → Parse → Derive columns → Render
-User Action → Modify one line → Write File → Read File → Parse → Derive columns → Render
-```
+Auto-detects a Chromium/Firefox/Safari install across `$BROWSER`, `PATH`, macOS app bundles, and WSL — see `find_browser()` in `kbtd.py` for the exact order. Chromium gets an isolated `--app=<url>` window with its own `--user-data-dir`; Firefox/Safari get a plain new window (no isolated-profile app-mode equivalent exists for them).
 
 ## Non-Goals
 
@@ -248,8 +132,4 @@ User Action → Modify one line → Write File → Read File → Parse → Deriv
 - No offline support beyond what the browser provides
 - No collaborative editing
 - No mobile support
-- No server component (pure client-side) — see "Out of scope" below
-
-## Out of Scope (follow-up change)
-
-The data layer is the File System Access API throughout, which Firefox and Safari don't implement. A planned follow-up gives `kbtd` a loopback HTTP server (`GET /` → index.html, `GET`/`HEAD`/`PUT /file` with ETag + If-Match) and splits index.html's I/O behind a backend interface (`FsaBackend` for today's self-hosted story, `HttpBackend` for Firefox/Safari/mobile), binding 127.0.0.1 on a random port with a per-launch token. Not part of this change.
+- `kbtd.py`'s server is local single-user only — no remote/multi-user hosting, no auth beyond the one per-launch token
