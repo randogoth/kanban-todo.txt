@@ -1,6 +1,14 @@
 ---
 name: todo-txt-kbtd
-description: Teaches how to read, query, and edit a todo.txt task file using the conventions the KBTD kanban board (https://github.com/randogoth/kanban-todo.txt) understands: line anatomy, @context columns, +project filters, #hashtag chips, and pter-compatible due/t/id/tracking/spent/pri tags. Use this skill for any task-management request against a todo.txt file, including adding, completing, reprioritizing, moving, time-tracking, or answering questions like "what's overdue", "what's in @work", or "what's untagged", not just hand-editing lines. Install by copying this file into a project's skill directory (e.g. .claude/skills/todo-txt-kbtd/SKILL.md) to make any todo.txt there KBTD-compatible.
+description: >-
+  Teaches how to read, query, and edit a todo.txt task file using the conventions the KBTD kanban
+  board (https://github.com/randogoth/kanban-todo.txt) understands: line anatomy, @context columns,
+  +project filters, #hashtag chips, and pter-compatible due/t/id/tracking/spent/pri tags. Use this
+  skill for any task-management request against a todo.txt file, including adding, completing,
+  reprioritizing, moving, time-tracking, or answering questions like "what's overdue", "what's in
+  @work", or "what's untagged", not just hand-editing lines. Install by copying this file into a
+  project's skill directory (e.g. .claude/skills/todo-txt-kbtd/SKILL.md) to make any todo.txt there
+  KBTD-compatible.
 ---
 
 # Managing a KBTD-compatible todo.txt
