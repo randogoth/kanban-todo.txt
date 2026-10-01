@@ -23,11 +23,14 @@ A [todo.txt](https://github.com/todotxt/todo.txt) based kanban board in a single
 
 The text based format is designed to be simple for humans, git, LLMs, and other todo.txt tools to read and edit. `@context` tags become columns, `+project` tags become filters, and the usual todo.txt metadata tags (`due:`, `t:`, `id:`, `tracking:`, `spent:`) show up as badges on the card.
 
-```
-(A) Task number one. +project @column
-Some other task. +project @column due:2026-11-01
+New tasks get the date they were added, completed ones get the date they were finished in front of it, the usual todo.txt convention.
 
-Yet another task. +project @another-column
+```
+(A) 2026-09-28 Task number one. +project @column
+2026-09-28 Some other task. +project @column due:2026-11-01
+
+2026-09-29 Yet another task. +project @another-column
+x 2026-10-01 2026-09-20 This one is done. +project @column
 ```
 
 ## CLI Install

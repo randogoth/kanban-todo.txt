@@ -43,7 +43,9 @@ specific choices worth knowing up front:
 - `(A)`–`(Z)`: priority, prefix form. **Only valid on an incomplete task.** A completed task's priority
   lives in the body as `pri:A` instead (see below). The parser is tolerant of a stray `(A)` after `x`
   on read, but never write it that way.
-- Dates are `YYYY-MM-DD`.
+- Dates are `YYYY-MM-DD`. A completed task carries both: `x <completion-date> <creation-date>`.
+  An incomplete one carries just `<creation-date>`. Old lines may have neither, and a lone date on
+  a completed line is the completion date, not the creation date.
 - `<body>` is everything else: free text that may contain `+project`, `@context`, `#hashtag`, and any
   number of `key:value` tags, in any order, anywhere in the text. They're not separate fields, they're
   just substrings of the body that the board's regexes pick out when rendering.
@@ -51,14 +53,15 @@ specific choices worth knowing up front:
 Four real examples, each a complete, valid line:
 
 ```
-Buy milk @errands
-(A) Write RFC +website @backlog due:2026-11-01
+2026-09-28 Buy milk @errands
+(A) 2026-09-28 Write RFC +website @backlog due:2026-11-01
 Fix flaky test +app @inprogress #testing id:T12
 x 2026-10-01 2026-09-20 Design mockups +website @inprogress pri:B
 ```
 
-The last one: completed (`x`), completed 2026-10-01, created 2026-09-20, priority B lives in `pri:B`
-inside the body, not as a `(B)` prefix.
+The third one is an older line with no creation date, still perfectly valid on read. The last one:
+completed (`x`), completed 2026-10-01, created 2026-09-20, priority B lives in `pri:B` inside the
+body, not as a `(B)` prefix.
 
 ## The one rule that matters most: edit the body as text, don't reconstruct it
 
@@ -106,18 +109,24 @@ Concretely:
 ## Making edits
 
 **Add a new task.** Append a new line at the end of the file (trim any trailing blank lines first, so
-you don't leave a gap). Don't invent a creation date, todo.txt only gets one if the user supplies it
-or asks for it. Give it whatever `@context`/`+project`/tags are relevant so it lands in the right
-column from the start.
+you don't leave a gap). Start it with today's date as the creation date, after the `(A)` prefix if
+there is one, so the line reads `(A) 2026-10-01 Write RFC ...` or just `2026-10-01 Buy milk ...`.
+That's standard todo.txt practice and what the board writes. If the user gives a different creation
+date, use theirs instead. Give the task whatever `@context`/`+project`/tags are relevant so it lands
+in the right column from the start.
 
 **Mark a task complete.** Three changes, together:
-1. Prefix the line with `x <today's date> ` (date format `YYYY-MM-DD`).
+1. Prefix the line with `x <today's date> ` (date format `YYYY-MM-DD`), *in front of* any creation
+   date already on the line, giving `x 2026-10-01 2026-09-20 Design mockups ...`. Keep the creation
+   date where it is. If the line never had one, don't invent one now, you don't know when it was
+   created, and one date on a completed line reads as the completion date anyway.
 2. If the task had a `(A)` priority prefix, remove it and add `pri:A` to the body instead. Don't just
    leave the `(A)` prefix in place, it's only valid on incomplete tasks.
 3. Leave `@context`/`+project`/every other tag untouched.
 
-**Mark a task incomplete again.** Reverse of the above: drop the `x <date> ` prefix. If the body has a
-`pri:A` tag, remove it and restore it as a `(A)` prefix instead.
+**Mark a task incomplete again.** Reverse of the above: drop the `x ` and the completion date that
+follows it, and keep the creation date behind it. If the body has a `pri:A` tag, remove it and
+restore it as a `(A)` prefix instead.
 
 **Change priority on an incomplete task.** Just add/replace/remove the `(A)` prefix. Nothing else
 changes.
@@ -167,6 +176,9 @@ the file directly, don't guess at a UI that isn't there:
 - Rebuilding the whole line from scratch instead of editing the existing text. This loses whatever
   you didn't bother to parse (stray notes, unfamiliar tags, exact spacing).
 - Duplicating a tag instead of replacing it in place.
+- Mixing up the two dates when completing a task: the completion date goes first, right after the
+  `x `, and the creation date stays behind it. Writing them the other way round backdates the
+  completion and makes the board show the wrong day.
 - Touching lines you weren't asked to change. Every board action in KBTD is a single-line rewrite,
   match that. Don't reflow or reorder unrelated lines "while you're in there."
 - Deleting or collapsing blank lines. They're part of the file's own formatting, not noise.

@@ -26,6 +26,7 @@ Something else +app
 A task line tokenises as `[x] [completion-date] [(priority)] [creation-date] <body>`, tolerant on read of priority appearing either before or after the dates (some todo.txt clients write it differently). The `body` is kept as a raw string and never re-serialised: `+project`, `@context` and `key:value` tags, and the display title, are regex-derived views over it. This preserves the user's own text layout.
 
 - `x ` prefix marks a task complete. The following date is the completion date
+- Dates are `YYYY-MM-DD`. A completed task reads `x <completion-date> <creation-date>`, an incomplete one just `<creation-date>`. Both are optional on read, and a lone date on a completed line is the completion date
 - `(A)`–`(Z)` is the priority. For a completed task the priority is carried as a `pri:A` tag in the body instead of the prefix
 - `+project` and `@context` tags are free text within the body. A task can carry several of each
 - `due:`, `t:`, `id:`, `tracking:`, `spent:` are [pter](https://codeberg.org/pter/pter)-compatible metadata tags (see below)
@@ -70,6 +71,7 @@ Two components: the `kbtd.py` launcher (resolves the file, finds/launches a brow
 - "Completed column" toggle: pools every completed task into a synthetic rightmost column instead of leaving it in its `@context` lane. Dragging into it marks a card complete, and dragging out marks it incomplete and files it under the target column
 - Card face shows title, `+project`/`#hashtag` chips, priority/due/spent/tracking badges, an `id:` chip and chips for any other tags
 - Header project filter is a multi-select checklist (OR across selected projects), plus a `(no project)` entry
+- New cards are stamped with today's creation date. A card added straight into the synthetic Completed column also gets today's completion date. Completing an existing card adds a completion date and keeps whatever creation date the line already had, no creation date is invented after the fact
 - Card menu: Completed, Set project..., Start/Stop tracking, Assign ID, Delete
 - Card detail modal: free-text body, priority, due date, start (`t:`) date, spent, start/stop tracking, ID
 

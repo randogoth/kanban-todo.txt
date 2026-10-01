@@ -1741,20 +1741,37 @@ chmod 755 kbtd.py
             });
         }
 
-        async function createTask(body) {
+        async function createTask(line) {
             await modifyFileLines(lines => {
                 while (lines.length && lines[lines.length - 1] === '') lines.pop();
-                lines.push(body);
+                lines.push(line);
             });
         }
 
         async function createTaskInColumn(columnName, text) {
+            // Parse the typed text first, so a leading `x`, `(A)` or date the user front-loaded
+            // lands in its own slot instead of being pushed into the body by the date stamp.
+            const task = parseTask(text, -1);
+            const today = todayStr();
             if (state.groupCompleted && columnName === COMPLETED_LANE) {
-                await createTask(`x ${todayStr()} ${text}`);
-                return;
+                task.completed = true;
+            } else if (columnName !== 'Queue') {
+                task.body = `${task.body} @${columnName}`;
             }
-            const body = columnName === 'Queue' ? text : `${text} @${columnName}`;
-            await createTask(body);
+            if (task.completed) {
+                task.completionDate = task.completionDate || today;
+                if (task.priority) {
+                    task.body = setTag(task.body, 'pri', task.priority);
+                    task.priority = null;
+                }
+            }
+            if (!task.creationDate) {
+                // Keep the two dates in order: something typed in as completed earlier than
+                // today was, as far as the file knows, created no later than that.
+                task.creationDate = task.completionDate && task.completionDate < today
+                    ? task.completionDate : today;
+            }
+            await createTask(buildLine(task));
         }
 
         async function setProjectAndContext(lineNumber, project, context) {
