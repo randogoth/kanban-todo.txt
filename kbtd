@@ -7,7 +7,7 @@ set -e
 # --- Helper Functions ---
 
 show_help() {
-    echo "Usage: kbtd [OPTIONS] <path-to-markdown-file>"
+    echo "Usage: kbtd [OPTIONS] <path-to-todo.txt-file>"
     echo ""
     echo "Options:"
     echo "  --browser    Open in existing browser instead of app mode"

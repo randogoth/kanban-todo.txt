@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="A Kanban board for your Markdown TODO file">
+    <meta name="description" content="A Kanban board for your todo.txt TODO file">
     <meta name="theme-color" content="#112">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -68,7 +68,7 @@
             border: .1rem solid var(--shade);
         }
 
-        input[type="text"] {
+        input[type="text"], input[type="date"] {
             appearance: none;
             box-shadow: none;
             box-sizing: inherit;
@@ -345,6 +345,10 @@
             opacity: 0.6;
         }
 
+        .card.deferred {
+            opacity: 0.55;
+        }
+
         .card.dragging {
             opacity: 0.5;
             border: .1rem dashed var(--fg);
@@ -367,45 +371,45 @@
 
         .card-footer {
             display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
+            flex-direction: column;
+            align-items: stretch;
             font-size: 0.85em;
             color: var(--shade);
-            gap: 0.5em;
+            gap: 0.4em;
         }
 
-        .card-footer-content {
+        .card-badges, .card-chips {
             display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0.25em;
+            flex-wrap: wrap;
+            gap: 0.4em;
         }
 
-        .card-metadata {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 0.25em;
-        }
-
-        .card-expand-indicator {
+        .badge {
+            font-size: 0.85em;
             color: var(--shade);
-            font-size: 1.2em;
-            line-height: 1;
+            border: .1rem solid var(--shade);
+            border-radius: var(--radius);
+            padding: 0.1em 0.5em;
+            white-space: nowrap;
         }
 
-        .card-progress-bar {
-            height: 6px;
-            width: 6ch;
-            background: #445;
-            border-radius: 2px;
-            overflow: hidden;
+        .badge-due.alert {
+            color: #f80;
+            border-color: #f80;
         }
 
-        .card-progress-fill {
-            height: 100%;
-            background: #4a4;
-            transition: width 0.2s ease;
+        .badge-tracking {
+            color: #4a4;
+            border-color: #4a4;
+        }
+
+        .chip {
+            font-size: 0.8em;
+            color: var(--shade);
+            padding: 0.1em 0.4em;
+            border-radius: var(--radius);
+            background: rgba(255,255,255,0.05);
+            white-space: nowrap;
         }
 
         .card-menu-btn {
@@ -438,7 +442,7 @@
             border: .1rem solid var(--fg);
             border-radius: var(--radius);
             padding: 0.5em 0;
-            min-width: 150px;
+            min-width: 170px;
             z-index: 100;
             display: none;
             opacity: 1;
@@ -594,29 +598,6 @@
             flex: 1;
             padding: 0.3rem 0.5rem;
             font-size: 0.9rem;
-        }
-
-        .section-list {
-            list-style: none;
-            padding: 0;
-            width: 100%;
-            max-width: 600px;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5em;
-        }
-
-        .section-btn {
-            width: 100%;
-            text-align: left;
-            padding: 1em;
-            background: transparent;
-            color: var(--fg);
-            border: .1rem solid var(--shade);
-        }
-
-        .section-btn:hover {
-            border-color: var(--fg);
         }
 
         .new-project-form {
@@ -784,6 +765,17 @@
             margin-bottom: 0.5em;
         }
 
+        .modal-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+
+        .modal-row > div {
+            flex: 1;
+            min-width: 140px;
+        }
+
         .modal-buttons {
             display: flex;
             gap: 0.5em;
@@ -791,7 +783,7 @@
             margin-top: 1.5em;
         }
 
-        .project-select, .column-select {
+        .project-select, .column-select, .form-select {
             width: 100%;
             padding: 0.5em;
             padding-right: 2.5em;
@@ -857,24 +849,18 @@
         ul {
             list-style: square;
         }
-
-        .card-detail-content {
-            white-space: pre-wrap;
-            font-family: monospace;
-            text-align: left;
-            line-height: 1.6;
-        }
     </style>
 </head>
 <body>
     <template id="intro-content-template">
         <h1>Kanban TODO</h1>
-        <p>A Kanban board for your Markdown TODO file.</p>
+        <p>A Kanban board for your todo.txt TODO file.</p>
         <ul style="text-align: left; max-width: 600px;">
-            <li>Drag-and-drop visual editing of plain text Markdown</li>
+            <li>Drag-and-drop visual editing of a plain text todo.txt file</li>
+            <li>Compatible with the wider todo.txt ecosystem (kanto, pter, todo.sh)</li>
             <li>Runs 100% in your browser - no server, no database</li>
             <li>Single HTML file - upload to self-host</li>
-            <li>CLI tool to launch as a Chrome app: <code>kbtd TODO.md</code></li>
+            <li>CLI tool to launch as a Chrome app: <code>kbtd todo.txt</code></li>
             <li>Two-way binding between UI and text file</li>
             <li>Great for indie-scale solo projects and small teams</li>
         </ul>
@@ -893,7 +879,7 @@ chmod 755 kbtd
 # export KBTD_URL="<span class="current-url">https://mccormick.cx/apps/kanban-todo/kbtd</span>"
 
 # Then launch with:
-./kbtd TODO.md</pre>
+./kbtd todo.txt</pre>
     </template>
 
     <template id="project-selection-template">
@@ -901,7 +887,7 @@ chmod 755 kbtd
             <label for="project-name-input">Project name:</label>
             <div class="form-row">
                 <input type="text" id="project-name-input" placeholder="e.g. TODO, work, personal...">
-                <button id="open-file-btn">Open TODO.md</button>
+                <button id="open-file-btn">Open todo.txt</button>
             </div>
         </div>
         <div id="recent-projects" class="recent-projects" style="display:none">
@@ -941,27 +927,14 @@ chmod 755 kbtd
             <button id="select-file-btn">Select File</button>
         </div>
 
-        <div id="section-screen" class="screen center-content">
-            <h1>Select Project</h1>
-            <ul id="section-list" class="section-list"></ul>
-            <div class="new-project-form">
-                <input type="text" id="new-project-input" placeholder="New project name...">
-                <button id="create-project-btn">Create</button>
-            </div>
-            <button id="change-file-btn" style="margin-top: 1em">Change File</button>
-        </div>
-
         <div id="board-screen" class="screen">
             <header>
-                <h2 id="board-title" style="margin:0">Project Name</h2>
+                <h2 style="margin:0">Kanban TODO</h2>
                 <div class="header-controls">
                     <div class="project-select-container">
-                        <button id="project-select-btn" class="project-select-btn" style="display:none">
-                            <span id="project-select-text"></span>
+                        <button id="project-select-btn" class="project-select-btn">
+                            <span id="project-select-text">All projects</span>
                             <span>▼</span>
-                        </button>
-                        <button id="project-create-btn" class="project-select-btn" style="display:none">
-                            + Create project
                         </button>
                         <div id="project-select-dropdown" class="project-select-dropdown"></div>
                     </div>
@@ -977,8 +950,12 @@ chmod 755 kbtd
                             <div class="burger-menu-checkbox" id="completed-checkbox"></div>
                             <span>Show completed</span>
                         </button>
-                        <button class="burger-menu-item" id="back-menu-item">
-                            <span>Projects</span>
+                        <button class="burger-menu-item" id="toggle-deferred-menu-item">
+                            <div class="burger-menu-checkbox" id="deferred-checkbox"></div>
+                            <span>Show deferred</span>
+                        </button>
+                        <button class="burger-menu-item" id="change-file-menu-item">
+                            <span>Change file</span>
                         </button>
                         <button class="burger-menu-item" id="about-menu-item">
                             <span>About</span>
@@ -989,20 +966,21 @@ chmod 755 kbtd
             <div id="board-container" class="board"></div>
         </div>
 
-        <div id="move-modal" class="modal">
+        <div id="set-project-modal" class="modal">
             <div class="modal-content">
-                <h3>Move to Project</h3>
+                <h3>Set Project</h3>
                 <div class="modal-section">
-                    <label for="target-project-select">Project:</label>
-                    <select id="target-project-select" class="project-select"></select>
+                    <label for="set-project-input">Project:</label>
+                    <input type="text" id="set-project-input" list="existing-projects-list" placeholder="(no project)">
+                    <datalist id="existing-projects-list"></datalist>
                 </div>
                 <div class="modal-section">
-                    <label for="target-column-select">Column:</label>
-                    <select id="target-column-select" class="column-select"></select>
+                    <label for="set-project-column-select">Column:</label>
+                    <select id="set-project-column-select" class="column-select"></select>
                 </div>
                 <div class="modal-buttons">
-                    <button id="move-cancel-btn">Cancel</button>
-                    <button id="move-confirm-btn">Move</button>
+                    <button id="set-project-cancel-btn">Cancel</button>
+                    <button id="set-project-confirm-btn">Set</button>
                 </div>
             </div>
         </div>
@@ -1010,12 +988,37 @@ chmod 755 kbtd
         <div id="card-detail-modal" class="modal">
             <div class="modal-content">
                 <div class="modal-section">
-                    <label for="card-detail-title-input">Title:</label>
-                    <input type="text" id="card-detail-title-input">
+                    <label for="card-detail-text-textarea">Text:</label>
+                    <textarea id="card-detail-text-textarea" rows="4" placeholder="Task text..."></textarea>
                 </div>
-                <div class="modal-section">
-                    <label for="card-detail-content-textarea">Details:</label>
-                    <textarea id="card-detail-content-textarea" placeholder="Add details..."></textarea>
+                <div class="modal-section modal-row">
+                    <div>
+                        <label for="card-detail-priority-select">Priority:</label>
+                        <select id="card-detail-priority-select" class="form-select"></select>
+                    </div>
+                    <div>
+                        <label for="card-detail-due-input">Due:</label>
+                        <input type="date" id="card-detail-due-input">
+                    </div>
+                    <div>
+                        <label for="card-detail-threshold-input">Start:</label>
+                        <input type="date" id="card-detail-threshold-input">
+                    </div>
+                    <div>
+                        <label for="card-detail-spent-input">Spent:</label>
+                        <input type="text" id="card-detail-spent-input" placeholder="e.g. 2h15m">
+                    </div>
+                </div>
+                <div class="modal-section modal-row">
+                    <div>
+                        <label>Tracking:</label>
+                        <button id="card-detail-tracking-btn" type="button"></button>
+                    </div>
+                    <div>
+                        <label>ID:</label>
+                        <span id="card-detail-id-text"></span>
+                        <button id="card-detail-assign-id-btn" type="button">Assign ID</button>
+                    </div>
                 </div>
                 <div class="modal-buttons" id="card-detail-buttons">
                     <button id="card-detail-close-btn">Close</button>
@@ -1046,35 +1049,26 @@ chmod 755 kbtd
         const DB_NAME = 'kbtd';
         const DB_VERSION = 1;
         const STORE_NAME = 'fileHandles';
+        const NO_PROJECT = '\u0000no-project';
+        const PTER_TAG_KEYS = ['due', 't', 'id', 'tracking', 'spent', 'pri'];
 
         let state = {
             fileHandle: null,
             filePath: null,
-            sections: [],
-            currentSectionIndex: -1,
-            lastModified: 0,
-            showCompleted: true
+            tasks: [],
+            columns: [],
+            pendingLanes: [],
+            projectFilter: null,
+            showCompleted: true,
+            showDeferred: true,
+            lastModified: 0
         };
 
         let dragState = {
             source: null
         };
 
-        let moveModalState = {
-            cardLineNumber: null,
-            cardOriginalLine: null,
-            sourceColIndex: null,
-            sourceCardIndex: null
-        };
-
-        let cardDetailModalState = {
-            card: null,
-            originalTitle: '',
-            originalContent: '',
-            originalCompleted: false,
-            isCompleted: false,
-            baseIndent: ''
-        };
+        let currentLanes = {};
 
         function checkFileSystemAccessAPI() {
             return 'showOpenFilePicker' in window;
@@ -1135,7 +1129,7 @@ chmod 755 kbtd
         function createAddForm(placeholder, onSubmit, onCancel) {
             const input = h('input', { type: 'text', placeholder });
             const form = h('div', { className: 'add-card-form' }, input);
-            
+
             const handleSubmit = async () => {
                 const value = input.value.trim();
                 if (!value) {
@@ -1144,37 +1138,37 @@ chmod 755 kbtd
                 }
                 await onSubmit(value);
             };
-            
+
             input.onkeypress = (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
                     handleSubmit();
                 }
             };
-            
+
             const buttons = h('div', { className: 'add-card-form-buttons' },
                 h('button', { textContent: 'Add', onclick: handleSubmit }),
-                h('button', { 
-                    textContent: 'Cancel', 
+                h('button', {
+                    textContent: 'Cancel',
                     onclick: () => {
                         form.hide();
                         if (onCancel) onCancel();
                     }
                 })
             );
-            
+
             form.appendChild(buttons);
-            
+
             form.show = () => {
                 form.classList.add('active');
                 input.focus();
             };
-            
+
             form.hide = () => {
                 form.classList.remove('active');
                 input.value = '';
             };
-            
+
             return form;
         }
 
@@ -1248,188 +1242,301 @@ chmod 755 kbtd
             }
         }
 
-        function detectIndent(lines, defaultIndent = '  ') {
-            if (!lines || lines.length === 0) return defaultIndent;
-            
-            const lineArray = typeof lines === 'string' ? lines.split('\n') : lines;
-            let minIndent = null;
-            
-            for (const line of lineArray) {
-                if (line.trim() === '') continue;
-                
-                const match = line.match(/^(\s+)/);
-                if (match) {
-                    const indent = match[1];
-                    if (minIndent === null || indent.length < minIndent.length) {
-                        minIndent = indent;
-                    }
-                }
+        // --- todo.txt parsing ---
+
+        function parseTask(line, lineNumber) {
+            const PRI_RE = /^\(([A-Z])\) /;
+            const DATE_RE = /^(\d{4}-\d{2}-\d{2}) /;
+            let rest = line;
+            let completed = false;
+            let priority = null;
+            const dates = [];
+
+            if (/^x(?:\s|$)/.test(rest)) {
+                completed = true;
+                rest = rest.slice(1);
+                if (rest.startsWith(' ')) rest = rest.slice(1);
             }
-            
-            return minIndent || defaultIndent;
-        }
 
-        function stripBaseIndent(nestedLines, baseIndent) {
-            if (!baseIndent) return nestedLines.join('\n');
-            
-            return nestedLines.map(line => {
-                if (line.startsWith(baseIndent)) {
-                    return line.substring(baseIndent.length);
+            for (let i = 0; i < 3; i++) {
+                let m = rest.match(PRI_RE);
+                if (m && priority === null) {
+                    priority = m[1];
+                    rest = rest.slice(m[0].length);
+                    continue;
                 }
-                return line;
-            }).join('\n');
-        }
-
-        function applyBaseIndent(text, baseIndent) {
-            if (!text.trim()) return [];
-            
-            return text.split('\n').map(line => {
-                if (line.trim() === '') return '';
-                return baseIndent + line;
-            });
-        }
-
-        function extractMetadata(nestedLines) {
-            const metadata = [];
-            const metadataPattern = /^(\w+):\s*(.+)$/;
-            const hashtagPattern = /#(\w+)/g;
-            
-            for (let i = 0; i < nestedLines.length; i++) {
-                const trimmed = nestedLines[i].trim();
-                if (trimmed === '') continue;
-                
-                // Extract hashtags from first line only
-                if (i === 0) {
-                    const hashtags = [...trimmed.matchAll(hashtagPattern)];
-                    hashtags.forEach(match => {
-                        metadata.push({ key: 'tag', value: match[1] });
-                    });
+                m = rest.match(DATE_RE);
+                if (m && dates.length < 2) {
+                    dates.push(m[1]);
+                    rest = rest.slice(m[0].length);
+                    continue;
                 }
-                
-                // Extract key-value metadata
-                const match = trimmed.match(metadataPattern);
-                if (match) {
-                    metadata.push({ key: match[1], value: match[2] });
-                } else if (i > 0) {
-                    // Stop looking for metadata after first non-matching line (after line 0)
-                    break;
-                }
+                break;
             }
-            
-            return metadata;
-        }
 
-        function countSubtasks(nestedLines) {
-            let total = 0;
-            let completed = 0;
-            
-            for (const line of nestedLines) {
-                const trimmed = line.trim();
-                if (trimmed.startsWith('- [ ]')) {
-                    total++;
-                } else if (trimmed.startsWith('- [x]')) {
-                    total++;
-                    completed++;
-                }
+            let completionDate = null, creationDate = null;
+            if (completed) {
+                completionDate = dates[0] || null;
+                creationDate = dates[1] || null;
+            } else {
+                creationDate = dates[0] || null;
             }
-            
-            return { total, completed };
+
+            return { completed, completionDate, priority, creationDate, body: rest, raw: line, lineNumber };
         }
 
-        function parseMarkdown(text) {
+        function buildLine(task) {
+            let prefix = '';
+            if (task.completed) prefix += 'x ';
+            if (task.completed && task.completionDate) prefix += task.completionDate + ' ';
+            if (task.priority) prefix += `(${task.priority}) `;
+            if (task.creationDate) prefix += task.creationDate + ' ';
+            return prefix + task.body;
+        }
+
+        function parseTodoTxt(text) {
             const lines = text.split('\n');
-            const sections = [];
-            let currentSection = null;
-            let currentColumn = null;
-            let currentCard = null;
-
-            const finishCard = () => {
-                if (currentCard) {
-                    if (currentColumn) {
-                        currentColumn.cards.push(currentCard);
-                    }
-                    currentCard = null;
-                }
-            };
-
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i];
-                const trimmed = line.trim();
-                
-                if (line.startsWith('# ')) {
-                    finishCard();
-                    currentSection = {
-                        name: line.substring(2).trim(),
-                        headerLineNumber: i,
-                        columns: []
-                    };
-                    sections.push(currentSection);
-                    currentColumn = null;
-                }
-                else if (line.startsWith('## ') && currentSection) {
-                    finishCard();
-                    currentColumn = {
-                        name: line.substring(3).trim(),
-                        headerLineNumber: i,
-                        cards: []
-                    };
-                    currentSection.columns.push(currentColumn);
-                }
-                else if ((trimmed.startsWith('- [ ]') || trimmed.startsWith('- [x]')) && currentColumn) {
-                    const isIndented = line.startsWith(' ') || line.startsWith('\t');
-                    
-                    if (isIndented && currentCard) {
-                        currentCard.nestedLines.push(line);
-                    } else {
-                        finishCard();
-                        const isCompleted = trimmed.startsWith('- [x]');
-                        const textStart = line.indexOf(']') + 2;
-                        const text = line.substring(textStart).trim();
-                        
-                        currentCard = {
-                            text: text,
-                            completed: isCompleted,
-                            lineNumber: i,
-                            originalLine: line,
-                            nestedLines: []
-                        };
-                    }
-                }
-                else {
-                    if (currentCard) {
-                        const isIndented = line.startsWith(' ') || line.startsWith('\t');
-                        if (isIndented) {
-                            currentCard.nestedLines.push(line);
-                        }
-                    }
-                }
-            }
-            finishCard();
-            return sections;
+            const tasks = [];
+            lines.forEach((line, i) => {
+                if (line.trim() === '') return;
+                tasks.push(parseTask(line, i));
+            });
+            return tasks;
         }
+
+        // --- tag helpers ---
+
+        function getTag(body, key) {
+            const m = body.match(new RegExp(`\\b${key}:(\\S+)`));
+            return m ? m[1] : null;
+        }
+
+        function setTag(body, key, value) {
+            const re = new RegExp(`\\b${key}:\\S+`);
+            if (re.test(body)) return body.replace(re, `${key}:${value}`);
+            const trimmed = body.replace(/\s+$/, '');
+            return trimmed + (trimmed ? ' ' : '') + `${key}:${value}`;
+        }
+
+        function removeTag(body, key) {
+            const re = new RegExp(`\\s*\\b${key}:\\S+`);
+            return body.replace(re, '').trim();
+        }
+
+        function appendPterTags(body, tags) {
+            let out = body;
+            for (const [key, val] of Object.entries(tags)) {
+                out = val ? setTag(out, key, val) : removeTag(out, key);
+            }
+            return out;
+        }
+
+        function stripPterTags(body) {
+            let out = body;
+            for (const key of PTER_TAG_KEYS) out = removeTag(out, key);
+            return out;
+        }
+
+        function applyContext(body, newContext) {
+            const m = body.match(/(?:^|\s)@(\S+)/);
+            if (newContext === 'Queue' || !newContext) {
+                if (!m) return body;
+                return (body.slice(0, m.index) + body.slice(m.index + m[0].length)).replace(/\s+/g, ' ').trim();
+            }
+            if (m) {
+                return body.slice(0, m.index) + m[0].replace('@' + m[1], '@' + newContext) + body.slice(m.index + m[0].length);
+            }
+            const trimmed = body.replace(/\s+$/, '');
+            return trimmed + (trimmed ? ' ' : '') + '@' + newContext;
+        }
+
+        function applyProject(body, newProject) {
+            const m = body.match(/(?:^|\s)\+(\S+)/);
+            if (!newProject) {
+                if (!m) return body;
+                return (body.slice(0, m.index) + body.slice(m.index + m[0].length)).replace(/\s+/g, ' ').trim();
+            }
+            if (m) {
+                return body.slice(0, m.index) + m[0].replace('+' + m[1], '+' + newProject) + body.slice(m.index + m[0].length);
+            }
+            const trimmed = body.replace(/\s+$/, '');
+            return trimmed + (trimmed ? ' ' : '') + '+' + newProject;
+        }
+
+        function parseDuration(str) {
+            if (!str) return 0;
+            str = str.trim();
+            let sign = 1;
+            if (str[0] === '-') { sign = -1; str = str.slice(1); }
+            else if (str[0] === '+') { str = str.slice(1); }
+            if (/^\d+$/.test(str)) return sign * parseInt(str, 10);
+            const mult = { w: 7 * 24 * 60, d: 24 * 60, h: 60, m: 1, s: 1 / 60 };
+            const re = /(\d+)([wdhms])/g;
+            let total = 0, matched = false, m;
+            while ((m = re.exec(str))) {
+                matched = true;
+                total += parseInt(m[1], 10) * mult[m[2]];
+            }
+            if (!matched) return 0;
+            return sign * total;
+        }
+
+        function formatDuration(minutes) {
+            const sign = minutes < 0 ? '-' : '';
+            minutes = Math.round(Math.abs(minutes));
+            const hrs = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            let out = '';
+            if (hrs) out += `${hrs}h`;
+            if (mins || !hrs) out += `${mins}m`;
+            return sign + out;
+        }
+
+        function formatTrackingDate(date) {
+            const p = n => String(n).padStart(2, '0');
+            return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}-${p(date.getHours())}-${p(date.getMinutes())}-${p(date.getSeconds())}`;
+        }
+
+        function parseTrackingDate(str) {
+            const m = str.match(/^(\d{4})-(\d{2})-(\d{2})-(\d{2})-(\d{2})-(\d{2})$/);
+            if (!m) return null;
+            return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+        }
+
+        function nextTaskId(tasks) {
+            let max = 0, prefix = '';
+            for (const t of tasks) {
+                const id = getTag(t.body, 'id');
+                if (!id) continue;
+                const m = id.match(/^(\D*)(\d+)$/);
+                if (!m) continue;
+                const n = parseInt(m[2], 10);
+                if (n > max) { max = n; prefix = m[1]; }
+            }
+            return `${prefix}${max + 1}`;
+        }
+
+        function todayStr() {
+            const d = new Date();
+            const p = n => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+        }
+
+        // --- derived task views ---
+
+        function taskProjects(task) {
+            return [...task.body.matchAll(/(?:^|\s)\+(\S+)/g)].map(m => m[1]);
+        }
+
+        function taskContexts(task) {
+            return [...task.body.matchAll(/(?:^|\s)@(\S+)/g)].map(m => m[1]);
+        }
+
+        function taskTags(task) {
+            const known = new Set(PTER_TAG_KEYS);
+            return [...task.body.matchAll(/(?:^|\s)([A-Za-z0-9_]+):(\S+)/g)]
+                .map(m => ({ key: m[1], value: m[2] }))
+                .filter(t => !known.has(t.key));
+        }
+
+        function taskTitle(task) {
+            return task.body
+                .replace(/(?:^|\s)\+\S+/g, '')
+                .replace(/(?:^|\s)@\S+/g, '')
+                .replace(/(?:^|\s)[A-Za-z0-9_]+:\S+/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function taskColumn(task) {
+            const ctxs = taskContexts(task);
+            return ctxs.length ? ctxs[0] : 'Queue';
+        }
+
+        function sortPriority(task) {
+            return task.completed ? getTag(task.body, 'pri') : task.priority;
+        }
+
+        function isDeferred(task) {
+            const t = getTag(task.body, 't');
+            return t ? t > todayStr() : false;
+        }
+
+        function isOverdue(task) {
+            const due = getTag(task.body, 'due');
+            return due ? due <= todayStr() : false;
+        }
+
+        function liveElapsedStr(trackingTag) {
+            const start = parseTrackingDate(trackingTag);
+            if (!start) return '';
+            return formatDuration((Date.now() - start.getTime()) / 60000);
+        }
+
+        function allProjects(tasks) {
+            const set = new Set();
+            for (const t of tasks) for (const p of taskProjects(t)) set.add(p);
+            return [...set].sort();
+        }
+
+        function passesFilter(task, filter) {
+            if (filter === null) return true;
+            const projects = taskProjects(task);
+            if (projects.length === 0) return filter.has(NO_PROJECT);
+            return projects.some(p => filter.has(p));
+        }
+
+        function buildColumns(tasks, filter, pendingLanes) {
+            const filtered = tasks.filter(t => passesFilter(t, filter));
+            const order = [];
+            const seen = new Set();
+            const addIfNew = (name) => { if (!seen.has(name)) { seen.add(name); order.push(name); } };
+            filtered.filter(t => !t.completed).forEach(t => addIfNew(taskColumn(t)));
+            filtered.filter(t => t.completed).forEach(t => addIfNew(taskColumn(t)));
+            (pendingLanes || []).forEach(addIfNew);
+            return order;
+        }
+
+        function sortTasksByPriority(tasks) {
+            return tasks
+                .map((t, i) => ({ t, i }))
+                .sort((a, b) => {
+                    const pa = sortPriority(a.t), pb = sortPriority(b.t);
+                    if (pa && pb) return pa < pb ? -1 : pa > pb ? 1 : a.i - b.i;
+                    if (pa) return -1;
+                    if (pb) return 1;
+                    return a.i - b.i;
+                })
+                .map(x => x.t);
+        }
+
+        function computeLaneTasks(columnName) {
+            const filtered = state.tasks.filter(t => passesFilter(t, state.projectFilter) && taskColumn(t) === columnName);
+            const visible = filtered.filter(t => {
+                if (!state.showCompleted && t.completed) return false;
+                if (!state.showDeferred && isDeferred(t)) return false;
+                return true;
+            });
+            return sortTasksByPriority(visible);
+        }
+
+        function findTaskByLineNumber(lineNumber) {
+            return state.tasks.find(t => t.lineNumber === lineNumber);
+        }
+
+        // --- file I/O ---
 
         function reloadFromText(text) {
-            console.log('Reloading from text');
-            state.sections = parseMarkdown(text);
-            console.log('Parsed sections:', state.sections);
-            
-            if (state.currentSectionIndex !== -1 && state.sections[state.currentSectionIndex]) {
-                renderBoard();
-            } else {
-                renderSectionPicker();
-            }
+            state.tasks = parseTodoTxt(text);
+            renderBoard();
         }
 
         async function writeFile(text) {
             try {
-                console.log('Writing file and updating UI');
                 reloadFromText(text);
-                
                 const writable = await state.fileHandle.createWritable();
                 await writable.write(text);
                 await writable.close();
-                console.log('File written successfully');
-                
                 const file = await state.fileHandle.getFile();
                 state.lastModified = file.lastModified;
             } catch (err) {
@@ -1446,371 +1553,118 @@ chmod 755 kbtd
             await writeFile(lines.join('\n'));
         }
 
-        async function updateLineInFile(lineNum, newText) {
-            console.log('updateLineInFile:', lineNum, newText);
+        // --- mutations ---
+
+        async function setCompleted(lineNumber, completed) {
             await modifyFileLines(lines => {
-                lines[lineNum] = newText;
-            });
-        }
-
-        function findCardByLineNumber(lineNumber) {
-            const section = state.sections[state.currentSectionIndex];
-            for (let colIndex = 0; colIndex < section.columns.length; colIndex++) {
-                const column = section.columns[colIndex];
-                for (let cardIndex = 0; cardIndex < column.cards.length; cardIndex++) {
-                    const card = column.cards[cardIndex];
-                    if (card.lineNumber === lineNumber) {
-                        return { card, colIndex, cardIndex };
-                    }
-                }
-            }
-            return null;
-        }
-
-        async function modifyCard(lineNumber, fn) {
-            await modifyFileLines(lines => {
-                const cardInfo = findCardByLineNumber(lineNumber);
-                if (!cardInfo) {
-                    console.error('Could not find card with line number', lineNumber);
-                    return;
-                }
-                fn(lines, cardInfo);
-            });
-        }
-
-        async function updateCardInFile(lineNumber, newTitle, newNestedContent, baseIndent, isCompleted) {
-            console.log('updateCardInFile:', lineNumber, newTitle, newNestedContent, baseIndent, isCompleted);
-            await modifyCard(lineNumber, (lines, cardInfo) => {
-                const card = cardInfo.card;
-                const oldNestedLineCount = card.nestedLines.length;
-                
-                const checkbox = isCompleted ? '[x]' : '[ ]';
-                const newCardLine = `- ${checkbox} ${newTitle}`;
-                
-                const newNestedLines = applyBaseIndent(newNestedContent, baseIndent);
-                
-                lines.splice(lineNumber, 1 + oldNestedLineCount, newCardLine, ...newNestedLines);
-                
-                console.log('Updated card at line', lineNumber);
-            });
-        }
-
-        async function deleteCard(lineNumber) {
-            console.log('deleteCard:', lineNumber);
-            await modifyCard(lineNumber, (lines, cardInfo) => {
-                const card = cardInfo.card;
-                const nestedLineCount = card.nestedLines.length;
-                
-                lines.splice(lineNumber, 1 + nestedLineCount);
-                
-                console.log('Deleted card at line', lineNumber, 'with', nestedLineCount, 'nested lines');
-            });
-        }
-
-        async function moveLineInFile(fromLine, toLine, targetColumnIndex, insertPosition) {
-            console.log('moveLineInFile: from line', fromLine, 'to line', toLine, 'targetColumnIndex:', targetColumnIndex, 'insertPosition:', insertPosition);
-            await modifyFileLines(lines => {
-                const section = state.sections[state.currentSectionIndex];
-                const targetColumn = section.columns[targetColumnIndex];
-                const targetColumnIsEmpty = targetColumn.cards.length === 0;
-                const isInsertingAtBottom = insertPosition === targetColumn.cards.length;
-                
-                const cardInfo = findCardByLineNumber(fromLine);
-                if (!cardInfo) {
-                    console.error('Could not find card with line number', fromLine);
-                    return;
-                }
-                
-                const nestedLineCount = cardInfo.card.nestedLines.length;
-                console.log('Card has', nestedLineCount, 'nested lines');
-                console.log('Before move, source line', fromLine, '=', lines[fromLine]);
-                console.log('Target column is empty:', targetColumnIsEmpty);
-                console.log('Inserting at bottom:', isInsertingAtBottom);
-                
-                const movedLines = lines.splice(fromLine, 1 + nestedLineCount);
-                
-                let actualInsertLine;
-                
-                if (targetColumnIsEmpty) {
-                    console.log('Moving to empty column - inserting after header');
-                    actualInsertLine = targetColumn.headerLineNumber + 1;
-                    
-                    if (actualInsertLine < lines.length && lines[actualInsertLine].trim() === '') {
-                        lines.splice(actualInsertLine, 0, ...movedLines);
-                    } else {
-                        lines.splice(actualInsertLine, 0, '', ...movedLines);
-                    }
-                    
-                    const afterLine = actualInsertLine + (lines[actualInsertLine].trim() === '' ? 1 + movedLines.length : movedLines.length);
-                    if (afterLine >= lines.length || lines[afterLine].trim() !== '') {
-                        lines.splice(afterLine, 0, '');
+                const task = parseTask(lines[lineNumber], lineNumber);
+                task.completed = completed;
+                if (completed) {
+                    task.completionDate = todayStr();
+                    if (task.priority) {
+                        task.body = setTag(task.body, 'pri', task.priority);
+                        task.priority = null;
                     }
                 } else {
-                    if (insertPosition === 0) {
-                        console.log('Inserting at start of column');
-                        actualInsertLine = targetColumn.headerLineNumber + 1;
-                        
-                        if (actualInsertLine < lines.length && lines[actualInsertLine].trim() === '') {
-                            actualInsertLine++;
-                        }
-                        
-                        lines.splice(actualInsertLine, 0, ...movedLines);
-                    } else {
-                        console.log('Inserting at position', insertPosition);
-                        const cardBefore = targetColumn.cards[insertPosition - 1];
-                        actualInsertLine = cardBefore.lineNumber + 1;
-                        if (cardBefore.nestedLines.length > 0) {
-                            actualInsertLine += cardBefore.nestedLines.length;
-                        }
-                        
-                        if (fromLine < actualInsertLine) {
-                            actualInsertLine -= (1 + nestedLineCount);
-                        }
-                        
-                        if (actualInsertLine > 0 && lines[actualInsertLine - 1].trim() === '') {
-                            console.log('Line before target is blank, replacing it');
-                            lines.splice(actualInsertLine - 1, 1, ...movedLines);
-                        } else {
-                            console.log('Inserting at target position');
-                            lines.splice(actualInsertLine, 0, ...movedLines);
-                        }
-                        
-                        if (isInsertingAtBottom) {
-                            const movedLineIndex = lines[actualInsertLine - 1] === movedLines[0] ? actualInsertLine - 1 : actualInsertLine;
-                            const afterLine = movedLineIndex + movedLines.length;
-                            if (afterLine >= lines.length || lines[afterLine].trim() !== '') {
-                                console.log('Inserting at bottom - ensuring blank line after moved item at line', afterLine);
-                                lines.splice(afterLine, 0, '');
-                            }
-                        }
+                    const pri = getTag(task.body, 'pri');
+                    if (pri) {
+                        task.priority = pri;
+                        task.body = removeTag(task.body, 'pri');
                     }
+                    task.completionDate = null;
                 }
-                
-                console.log('After move, lines around target:');
-                for (let i = Math.max(0, actualInsertLine - 2); i <= Math.min(lines.length - 1, actualInsertLine + movedLines.length + 2); i++) {
-                    console.log(`  line ${i}: "${lines[i]}"`);
-                }
+                lines[lineNumber] = buildLine(task);
             });
         }
 
-        async function moveLineBetweenSections(fromLine, targetSectionIndex, targetColumnIndex) {
-            console.log('moveLineBetweenSections: from line', fromLine, 'to section', targetSectionIndex, 'column', targetColumnIndex);
+        async function toggleTracking(lineNumber) {
             await modifyFileLines(lines => {
-                const cardInfo = findCardByLineNumber(fromLine);
-                if (!cardInfo) {
-                    console.error('Could not find card with line number', fromLine);
-                    return;
-                }
-                
-                const nestedLineCount = cardInfo.card.nestedLines.length;
-                console.log('Card has', nestedLineCount, 'nested lines');
-                
-                const movedLines = lines.splice(fromLine, 1 + nestedLineCount);
-                
-                const targetSection = state.sections[targetSectionIndex];
-                const targetColumn = targetSection.columns[targetColumnIndex];
-                
-                let insertLine;
-                if (targetColumn.cards.length === 0) {
-                    insertLine = targetColumn.headerLineNumber + 1;
-                    
-                    if (fromLine < insertLine) {
-                        insertLine -= (1 + nestedLineCount);
-                    }
-                    
-                    if (insertLine < lines.length && lines[insertLine].trim() === '') {
-                        lines.splice(insertLine, 0, ...movedLines);
-                    } else {
-                        lines.splice(insertLine, 0, '', ...movedLines);
-                    }
-                    
-                    const afterLine = insertLine + (lines[insertLine].trim() === '' ? 1 + movedLines.length : movedLines.length);
-                    if (afterLine >= lines.length || lines[afterLine].trim() !== '') {
-                        lines.splice(afterLine, 0, '');
-                    }
+                const task = parseTask(lines[lineNumber], lineNumber);
+                const tracking = getTag(task.body, 'tracking');
+                if (tracking) {
+                    const start = parseTrackingDate(tracking);
+                    const elapsedMin = start ? (Date.now() - start.getTime()) / 60000 : 0;
+                    const prevSpent = parseDuration(getTag(task.body, 'spent') || '0');
+                    task.body = removeTag(task.body, 'tracking');
+                    task.body = setTag(task.body, 'spent', formatDuration(prevSpent + elapsedMin));
                 } else {
-                    const lastCard = targetColumn.cards[targetColumn.cards.length - 1];
-                    insertLine = lastCard.lineNumber + 1;
-                    if (lastCard.nestedLines.length > 0) {
-                        insertLine += lastCard.nestedLines.length;
-                    }
-                    
-                    if (fromLine < insertLine) {
-                        insertLine -= (1 + nestedLineCount);
-                    }
-                    
-                    lines.splice(insertLine, 0, ...movedLines);
-                    
-                    const afterLine = insertLine + movedLines.length;
-                    if (afterLine >= lines.length || lines[afterLine].trim() !== '') {
-                        lines.splice(afterLine, 0, '');
-                    }
+                    task.body = setTag(task.body, 'tracking', formatTrackingDate(new Date()));
                 }
-                
-                console.log('Moved lines to position', insertLine);
+                lines[lineNumber] = buildLine(task);
             });
         }
 
-        async function createProject(projectName) {
-            console.log('Creating project:', projectName);
+        async function assignId(lineNumber) {
+            const id = nextTaskId(state.tasks);
             await modifyFileLines(lines => {
-                const text = lines.join('\n');
-                let newText;
-                if (text.trim() === '') {
-                    newText = `# ${projectName}\n\n## TODO\n\n## In Progress\n\n## Done\n`;
-                } else {
-                    newText = text + (text.endsWith('\n') ? '' : '\n') + `\n# ${projectName}\n\n## TODO\n\n## In Progress\n\n## Done\n`;
-                }
-                lines.length = 0;
-                lines.push(...newText.split('\n'));
+                const task = parseTask(lines[lineNumber], lineNumber);
+                task.body = setTag(task.body, 'id', id);
+                lines[lineNumber] = buildLine(task);
             });
-            
-            const newSectionIndex = state.sections.findIndex(s => s.name === projectName);
-            if (newSectionIndex !== -1) {
-                await selectSection(newSectionIndex);
-            }
         }
 
-        async function createColumn(columnName) {
-            console.log('Creating column:', columnName);
+        async function deleteTask(lineNumber) {
             await modifyFileLines(lines => {
-                const section = state.sections[state.currentSectionIndex];
-                
-                let insertLine;
-                if (section.columns.length === 0) {
-                    insertLine = section.headerLineNumber + 1;
-                } else {
-                    const lastColumn = section.columns[section.columns.length - 1];
-                    insertLine = lastColumn.headerLineNumber + 1;
-                    
-                    while (insertLine < lines.length) {
-                        const line = lines[insertLine];
-                        if (line.startsWith('# ') || line.startsWith('## ')) {
-                            break;
-                        }
-                        insertLine++;
-                    }
-                }
-                
-                console.log('Inserting new column at line', insertLine);
-                
-                if (insertLine > 0 && lines[insertLine - 1].trim() !== '') {
-                    lines.splice(insertLine, 0, '');
-                    insertLine++;
-                }
-                
-                lines.splice(insertLine, 0, `## ${columnName}`);
-                
-                if (insertLine + 1 >= lines.length || lines[insertLine + 1].trim() !== '') {
-                    lines.splice(insertLine + 1, 0, '');
-                }
+                lines.splice(lineNumber, 1);
             });
         }
 
-        async function createCard(columnIndex, cardText) {
-            console.log('Creating card in column', columnIndex, ':', cardText);
+        async function createTask(body) {
             await modifyFileLines(lines => {
-                const section = state.sections[state.currentSectionIndex];
-                const column = section.columns[columnIndex];
-                
-                let insertLine;
-                if (column.cards.length === 0) {
-                    insertLine = column.headerLineNumber + 1;
-                    
-                    if (insertLine < lines.length && lines[insertLine].trim() === '') {
-                        insertLine++;
-                    }
-                    
-                    lines.splice(insertLine, 0, `- [ ] ${cardText}`);
-                    
-                    if (insertLine + 1 >= lines.length || lines[insertLine + 1].trim() !== '') {
-                        lines.splice(insertLine + 1, 0, '');
-                    }
-                } else {
-                    const lastCard = column.cards[column.cards.length - 1];
-                    insertLine = lastCard.lineNumber + 1;
-                    if (lastCard.nestedLines.length > 0) {
-                        insertLine += lastCard.nestedLines.length;
-                    }
-                    
-                    lines.splice(insertLine, 0, `- [ ] ${cardText}`);
-                }
-                
-                console.log('Inserted new card at line', insertLine);
+                while (lines.length && lines[lines.length - 1] === '') lines.pop();
+                lines.push(body);
             });
         }
 
-        async function loadFile() {
-            try {
-                const file = await state.fileHandle.getFile();
-                state.lastModified = file.lastModified;
-                const text = await file.text();
-                state.sections = parseMarkdown(text);
-                
-                console.log('Parsed sections:', state.sections);
-                
-                if (state.filePath) {
-                    const key = `kbtd:${state.filePath}`;
-                    const stored = localStorage.getItem(key);
-                    if (stored) {
-                        try {
-                            const uiState = JSON.parse(stored);
-                            
-                            if (state.currentSectionIndex === -1) {
-                                const idx = state.sections.findIndex(s => s.name === uiState.currentSection);
-                                if (idx !== -1) state.currentSectionIndex = idx;
-                            }
-                            
-                            if (uiState.showCompleted !== undefined) {
-                                state.showCompleted = uiState.showCompleted;
-                            }
-                        } catch (e) { console.error(e); }
-                    }
-                }
+        async function createTaskInColumn(columnName, text) {
+            const body = columnName === 'Queue' ? text : `${text} @${columnName}`;
+            await createTask(body);
+        }
 
-                if (state.currentSectionIndex !== -1 && state.sections[state.currentSectionIndex]) {
-                    renderBoard();
+        async function setProjectAndContext(lineNumber, project, context) {
+            await modifyFileLines(lines => {
+                const task = parseTask(lines[lineNumber], lineNumber);
+                task.body = applyProject(task.body, project);
+                task.body = applyContext(task.body, context);
+                lines[lineNumber] = buildLine(task);
+            });
+        }
+
+        async function applyDrop(lineNumber, newContext, newPriority) {
+            await modifyFileLines(lines => {
+                const task = parseTask(lines[lineNumber], lineNumber);
+                if (newContext !== undefined) task.body = applyContext(task.body, newContext);
+                if (task.completed) {
+                    task.body = newPriority ? setTag(task.body, 'pri', newPriority) : removeTag(task.body, 'pri');
                 } else {
-                    renderSectionPicker();
+                    task.priority = newPriority || null;
                 }
-            } catch (err) {
-                console.error('Error loading file:', err);
-                throw err;
-            }
+                lines[lineNumber] = buildLine(task);
+            });
+        }
+
+        // --- persistence of UI state ---
+
+        function persistUiState() {
+            if (!state.filePath) return;
+            const key = `kbtd:${state.filePath}`;
+            localStorage.setItem(key, JSON.stringify({
+                projectFilter: state.projectFilter ? [...state.projectFilter] : null,
+                showCompleted: state.showCompleted,
+                showDeferred: state.showDeferred
+            }));
         }
 
         async function checkPermission(handle) {
             const opts = { mode: 'readwrite' };
-            if ((await handle.queryPermission(opts)) === 'granted') {
-                return true;
-            }
-            if ((await handle.requestPermission(opts)) === 'granted') {
-                return true;
-            }
+            if ((await handle.queryPermission(opts)) === 'granted') return true;
+            if ((await handle.requestPermission(opts)) === 'granted') return true;
             return false;
         }
 
         function showScreen(screenId) {
             $$('.screen').forEach(el => el.classList.remove('active'));
             $(`#${screenId}`).classList.add('active');
-        }
-
-        function renderSectionPicker() {
-            const list = $('#section-list');
-            list.replaceChildren(
-                ...state.sections.map((section, index) => 
-                    h('li', {},
-                        h('button', {
-                            className: 'section-btn',
-                            textContent: section.name,
-                            onclick: () => selectSection(index)
-                        })
-                    )
-                )
-            );
-            
-            $('#new-project-input').value = '';
-            showScreen('section-screen');
         }
 
         function closeAllCardMenus() {
@@ -1825,436 +1679,380 @@ chmod 755 kbtd
             $('#project-select-dropdown').classList.remove('active');
         }
 
-        function updateCompletedCheckbox() {
-            const checkbox = $('#completed-checkbox');
-            if (state.showCompleted) {
-                checkbox.classList.add('checked');
-            } else {
-                checkbox.classList.remove('checked');
-            }
+        function updateMenuCheckbox(id, value) {
+            $(`#${id}`).classList.toggle('checked', value);
         }
 
-        function updateProjectSelector() {
-            const projectSelectBtn = $('#project-select-btn');
-            const projectCreateBtn = $('#project-create-btn');
+        function toggleShowCompleted() {
+            state.showCompleted = !state.showCompleted;
+            persistUiState();
+            renderBoard();
+        }
+
+        function toggleShowDeferred() {
+            state.showDeferred = !state.showDeferred;
+            persistUiState();
+            renderBoard();
+        }
+
+        function setProjectFilter(filter) {
+            state.projectFilter = filter;
+            persistUiState();
+            renderBoard();
+        }
+
+        function toggleProjectFilter(name) {
+            const set = state.projectFilter === null ? new Set() : new Set(state.projectFilter);
+            if (set.has(name)) set.delete(name); else set.add(name);
+            state.projectFilter = set;
+            persistUiState();
+            renderBoard();
+        }
+
+        function renderProjectFilterDropdown() {
             const dropdown = $('#project-select-dropdown');
-            
-            projectSelectBtn.style.display = 'flex';
-            projectCreateBtn.style.display = 'none';
-            
-            const currentSection = state.sections[state.currentSectionIndex];
-            $('#project-select-text').textContent = currentSection.name;
-            
-            const items = state.sections.map((section, idx) => {
-                const isCurrent = idx === state.currentSectionIndex;
-                return h('button', {
-                    className: `project-select-dropdown-item ${isCurrent ? 'current' : ''}`,
-                    textContent: section.name,
-                    onclick: () => {
-                        if (!isCurrent) {
-                            selectSection(idx);
-                        }
-                        closeProjectDropdown();
-                    }
-                });
-            });
-            
-            const divider = h('div', { className: 'project-select-divider' });
-            
-            const newProjectItem = h('button', {
-                className: 'project-select-dropdown-item',
-                textContent: 'Add project',
-                onclick: () => {
-                    closeProjectDropdown();
-                    state.currentSectionIndex = -1;
-                    renderSectionPicker();
-                }
-            });
-            
-            dropdown.replaceChildren(...items, divider, newProjectItem);
-        }
+            const projects = allProjects(state.tasks);
 
-        const moveModal = createModal('move-modal', (data) => {
-            moveModalState = data;
-            
-            const currentSection = state.sections[state.currentSectionIndex];
-            const currentColumn = currentSection.columns[data.sourceColIndex];
-            const currentColumnName = currentColumn.name;
-            
-            const projectSelect = $('#target-project-select');
-            projectSelect.replaceChildren(
-                ...state.sections.map((section, index) => 
-                    h('option', {
-                        value: index,
-                        textContent: section.name,
-                        selected: index === state.currentSectionIndex
-                    })
-                )
-            );
-            
-            updateColumnSelect(currentColumnName);
-        }, () => {
-            moveModalState = {
-                cardLineNumber: null,
-                cardOriginalLine: null,
-                sourceColIndex: null,
-                sourceCardIndex: null
-            };
-        });
+            $('#project-select-text').textContent = state.projectFilter === null
+                ? 'All projects'
+                : `${state.projectFilter.size} project${state.projectFilter.size === 1 ? '' : 's'}`;
 
-        function updateColumnSelect(defaultColumnName = null) {
-            const projectSelect = $('#target-project-select');
-            const selectedProjectIndex = parseInt(projectSelect.value);
-            const selectedProject = state.sections[selectedProjectIndex];
-            
-            let defaultIndex = 0;
-            if (defaultColumnName) {
-                const matchingIndex = selectedProject.columns.findIndex(
-                    col => col.name === defaultColumnName
+            const allItem = h('button', {
+                className: `project-select-dropdown-item ${state.projectFilter === null ? 'current' : ''}`,
+                textContent: 'All projects',
+                onclick: () => setProjectFilter(null)
+            });
+
+            const items = projects.map(p => {
+                const checked = state.projectFilter !== null && state.projectFilter.has(p);
+                return h('button', { className: 'project-select-dropdown-item', onclick: () => toggleProjectFilter(p) },
+                    h('div', { className: `burger-menu-checkbox ${checked ? 'checked' : ''}` }),
+                    h('span', { textContent: p })
                 );
-                if (matchingIndex !== -1) {
-                    defaultIndex = matchingIndex;
-                }
-            }
-            
-            const columnSelect = $('#target-column-select');
-            columnSelect.replaceChildren(
-                ...selectedProject.columns.map((column, index) => 
-                    h('option', {
-                        value: index,
-                        textContent: column.name,
-                        selected: index === defaultIndex
-                    })
-                )
+            });
+
+            const noProjChecked = state.projectFilter !== null && state.projectFilter.has(NO_PROJECT);
+            const noProjItem = h('button', { className: 'project-select-dropdown-item', onclick: () => toggleProjectFilter(NO_PROJECT) },
+                h('div', { className: `burger-menu-checkbox ${noProjChecked ? 'checked' : ''}` }),
+                h('span', { textContent: '(no project)' })
             );
+
+            dropdown.replaceChildren(allItem, h('div', { className: 'project-select-divider' }), ...items, noProjItem);
         }
 
-        const cardDetailModal = createModal('card-detail-modal', async (card) => {
-            const file = await state.fileHandle.getFile();
-            const text = await file.text();
-            const defaultIndent = detectIndent(text);
-            
-            const baseIndent = card.nestedLines.length > 0 
-                ? detectIndent(card.nestedLines, '')
-                : defaultIndent;
-            
-            const strippedContent = stripBaseIndent(card.nestedLines, baseIndent);
-            
-            cardDetailModalState = {
-                card: card,
-                originalTitle: card.text,
-                originalContent: strippedContent,
-                originalCompleted: card.completed,
-                isCompleted: card.completed,
-                baseIndent: baseIndent
-            };
-            
-            $('#card-detail-title-input').value = card.text;
-            $('#card-detail-content-textarea').value = strippedContent;
-            
-            updateCardDetailButtons();
-            resizeDetailTextarea();
+        // --- set-project modal ---
+
+        let setProjectModalState = { lineNumber: null };
+
+        const setProjectModal = createModal('set-project-modal', (task) => {
+            setProjectModalState = { lineNumber: task.lineNumber };
+            const projects = taskProjects(task);
+            $('#set-project-input').value = projects[0] || '';
+            $('#existing-projects-list').replaceChildren(
+                ...allProjects(state.tasks).map(p => h('option', { value: p }))
+            );
+            const currentColumn = taskColumn(task);
+            const options = [...state.columns];
+            if (!options.includes('Queue')) options.push('Queue');
+            if (!options.includes(currentColumn)) options.push(currentColumn);
+            $('#set-project-column-select').replaceChildren(
+                ...options.map(name => h('option', { value: name, textContent: name, selected: name === currentColumn }))
+            );
         }, () => {
-            cardDetailModalState = {
-                card: null,
-                originalTitle: '',
-                originalContent: '',
-                originalCompleted: false,
-                isCompleted: false,
-                baseIndent: ''
-            };
+            setProjectModalState = { lineNumber: null };
         });
+
+        // --- card detail modal ---
+
+        let cardDetailModalState = { lineNumber: null, original: {}, current: {}, id: null, tracking: null };
+
+        function snapshotTask(task) {
+            return {
+                text: stripPterTags(task.body).trim(),
+                completed: task.completed,
+                priority: sortPriority(task) || '',
+                due: getTag(task.body, 'due') || '',
+                threshold: getTag(task.body, 't') || '',
+                spent: getTag(task.body, 'spent') || ''
+            };
+        }
+
+        const cardDetailModal = createModal('card-detail-modal', (task) => {
+            const snap = snapshotTask(task);
+            cardDetailModalState = {
+                lineNumber: task.lineNumber,
+                original: snap,
+                current: { ...snap },
+                id: getTag(task.body, 'id'),
+                tracking: getTag(task.body, 'tracking')
+            };
+            populateCardDetailFields();
+            updateCardDetailButtons();
+        }, () => {
+            cardDetailModalState = { lineNumber: null, original: {}, current: {}, id: null, tracking: null };
+        });
+
+        function populateCardDetailFields() {
+            const s = cardDetailModalState;
+            $('#card-detail-text-textarea').value = s.current.text;
+            const prioritySelect = $('#card-detail-priority-select');
+            prioritySelect.replaceChildren(
+                h('option', { value: '', textContent: '(none)' }),
+                ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(letter =>
+                    h('option', { value: letter, textContent: letter, selected: letter === s.current.priority }))
+            );
+            if (!s.current.priority) prioritySelect.value = '';
+            $('#card-detail-due-input').value = s.current.due;
+            $('#card-detail-threshold-input').value = s.current.threshold;
+            $('#card-detail-spent-input').value = s.current.spent;
+            $('#card-detail-tracking-btn').textContent = s.tracking ? 'Stop tracking' : 'Start tracking';
+            $('#card-detail-id-text').textContent = s.id || '(none)';
+            $('#card-detail-assign-id-btn').style.display = s.id ? 'none' : '';
+        }
 
         function updateCardDetailButtons() {
-            const titleInput = $('#card-detail-title-input');
-            const contentTextarea = $('#card-detail-content-textarea');
+            const s = cardDetailModalState;
             const buttonsContainer = $('#card-detail-buttons');
-            
-            const titleChanged = titleInput.value !== cardDetailModalState.originalTitle;
-            const contentChanged = contentTextarea.value !== cardDetailModalState.originalContent;
-            const completedChanged = cardDetailModalState.isCompleted !== cardDetailModalState.originalCompleted;
-            const isModified = titleChanged || contentChanged || completedChanged;
-            
-            const completedCheckbox = h('div', {
-                className: `card-menu-checkbox ${cardDetailModalState.isCompleted ? 'checked' : ''}`
-            });
-            
+            const isModified = JSON.stringify(s.current) !== JSON.stringify(s.original);
+
+            const completedCheckbox = h('div', { className: `card-menu-checkbox ${s.current.completed ? 'checked' : ''}` });
             const completedBtn = h('button', {
                 id: 'card-detail-completed-btn',
                 style: { display: 'flex', alignItems: 'center', gap: '0.5em', marginRight: 'auto',
                     background: 'transparent', color: 'var(--fg)', border: '.1rem solid var(--fg)' },
-                onclick: () => {
-                    cardDetailModalState.isCompleted = !cardDetailModalState.isCompleted;
-                    updateCardDetailButtons();
-                }
+                onclick: () => { s.current.completed = !s.current.completed; updateCardDetailButtons(); }
             }, completedCheckbox, h('span', { textContent: 'Completed' }));
 
             if (isModified) {
                 buttonsContainer.replaceChildren(
                     completedBtn,
-                    h('button', {
-                        id: 'card-detail-cancel-btn',
-                        textContent: 'Cancel',
-                        onclick: () => cardDetailModal.close()
-                    }),
-                    h('button', {
-                        id: 'card-detail-save-btn',
-                        textContent: 'Save',
-                        onclick: saveCardDetail
-                    })
+                    h('button', { textContent: 'Cancel', onclick: () => cardDetailModal.close() }),
+                    h('button', { textContent: 'Save', onclick: saveCardDetail })
                 );
             } else {
                 buttonsContainer.replaceChildren(
                     completedBtn,
-                    h('button', {
-                        id: 'card-detail-close-btn',
-                        textContent: 'Close',
-                        onclick: () => cardDetailModal.close()
-                    })
+                    h('button', { textContent: 'Close', onclick: () => cardDetailModal.close() })
                 );
             }
         }
 
         async function saveCardDetail() {
-            const titleInput = $('#card-detail-title-input');
-            const contentTextarea = $('#card-detail-content-textarea');
-            
-            const newTitle = titleInput.value.trim();
-            const newContent = contentTextarea.value;
-            
-            if (!newTitle) {
-                alert('Title cannot be empty');
+            const s = cardDetailModalState;
+            const text = $('#card-detail-text-textarea').value.trim();
+            if (!text) {
+                alert('Text cannot be empty');
                 return;
             }
-            
-            await updateCardInFile(
-                cardDetailModalState.card.lineNumber,
-                newTitle,
-                newContent,
-                cardDetailModalState.baseIndent,
-                cardDetailModalState.isCompleted
-            );
-            
+
+            const completed = s.current.completed;
+            const body = appendPterTags(text, {
+                due: s.current.due,
+                t: s.current.threshold,
+                spent: s.current.spent,
+                pri: completed ? s.current.priority : null,
+                id: s.id || null,
+                tracking: s.tracking || null
+            });
+
+            await modifyFileLines(lines => {
+                const task = parseTask(lines[s.lineNumber], s.lineNumber);
+                task.completed = completed;
+                task.completionDate = completed ? (task.completionDate || todayStr()) : null;
+                task.priority = completed ? null : (s.current.priority || null);
+                task.body = body;
+                lines[s.lineNumber] = buildLine(task);
+            });
+
             cardDetailModal.close();
         }
 
+        $('#card-detail-text-textarea').addEventListener('input', () => {
+            cardDetailModalState.current.text = $('#card-detail-text-textarea').value.trim();
+            updateCardDetailButtons();
+        });
+        $('#card-detail-priority-select').addEventListener('change', () => {
+            cardDetailModalState.current.priority = $('#card-detail-priority-select').value;
+            updateCardDetailButtons();
+        });
+        $('#card-detail-due-input').addEventListener('input', () => {
+            cardDetailModalState.current.due = $('#card-detail-due-input').value;
+            updateCardDetailButtons();
+        });
+        $('#card-detail-threshold-input').addEventListener('input', () => {
+            cardDetailModalState.current.threshold = $('#card-detail-threshold-input').value;
+            updateCardDetailButtons();
+        });
+        $('#card-detail-spent-input').addEventListener('input', () => {
+            cardDetailModalState.current.spent = $('#card-detail-spent-input').value;
+            updateCardDetailButtons();
+        });
+        $('#card-detail-tracking-btn').onclick = async () => {
+            await toggleTracking(cardDetailModalState.lineNumber);
+            const task = findTaskByLineNumber(cardDetailModalState.lineNumber);
+            if (task) {
+                cardDetailModalState.tracking = getTag(task.body, 'tracking');
+                cardDetailModalState.current.spent = getTag(task.body, 'spent') || '';
+                cardDetailModalState.original.spent = cardDetailModalState.current.spent;
+                populateCardDetailFields();
+                updateCardDetailButtons();
+            }
+        };
+        $('#card-detail-assign-id-btn').onclick = async () => {
+            await assignId(cardDetailModalState.lineNumber);
+            const task = findTaskByLineNumber(cardDetailModalState.lineNumber);
+            if (task) {
+                cardDetailModalState.id = getTag(task.body, 'id');
+                populateCardDetailFields();
+            }
+        };
+
         const aboutModal = createModal('about-modal');
 
-        async function confirmMove() {
-            const targetSectionIndex = parseInt($('#target-project-select').value);
-            const targetColumnIndex = parseInt($('#target-column-select').value);
-            
-            console.log('Moving card from section', state.currentSectionIndex, 'to section', targetSectionIndex, 'column', targetColumnIndex);
-            
-            if (targetSectionIndex === state.currentSectionIndex) {
-                await moveLineInFile(
-                    moveModalState.cardLineNumber,
-                    0,
-                    targetColumnIndex,
-                    state.sections[targetSectionIndex].columns[targetColumnIndex].cards.length
-                );
-            } else {
-                await moveLineBetweenSections(
-                    moveModalState.cardLineNumber,
-                    targetSectionIndex,
-                    targetColumnIndex
-                );
+        // --- rendering ---
+
+        function renderCard(task, colIndex, cardIndex) {
+            const title = taskTitle(task);
+            const projects = taskProjects(task);
+            const contexts = taskContexts(task);
+            const extraContexts = contexts.slice(1);
+            const tags = taskTags(task);
+            const priority = sortPriority(task);
+            const due = getTag(task.body, 'due');
+            const spent = getTag(task.body, 'spent');
+            const tracking = getTag(task.body, 'tracking');
+            const id = getTag(task.body, 'id');
+            const deferred = isDeferred(task);
+            const overdue = isOverdue(task);
+
+            const cardDiv = h('div', {
+                className: `card ${task.completed ? 'completed' : ''} ${deferred ? 'deferred' : ''}`,
+                draggable: true,
+                dataset: { lineNumber: task.lineNumber, colIndex, cardIndex },
+                ondragstart: (e) => handleDragStart(e, cardDiv),
+                ondragend: handleDragEnd,
+                ondragenter: (e) => handleCardDragEnter(e, cardDiv, colIndex, cardIndex),
+                onclick: (e) => {
+                    if (!e.target.closest('.card-menu-btn')) cardDetailModal.open(task);
+                }
+            });
+
+            const cardHeader = h('div', { className: 'card-header' },
+                h('span', { className: 'card-text', textContent: title || task.body }),
+                h('button', {
+                    className: 'card-menu-btn',
+                    textContent: '⋮',
+                    onclick: (e) => {
+                        e.stopPropagation();
+                        const menu = cardDiv.querySelector('.card-menu');
+                        const wasActive = menu.classList.contains('active');
+                        closeAllCardMenus();
+                        if (!wasActive) menu.classList.add('active');
+                    }
+                })
+            );
+
+            const menu = h('div', { className: 'card-menu' },
+                h('button', {
+                    className: 'card-menu-item',
+                    onclick: async (e) => {
+                        e.stopPropagation();
+                        closeAllCardMenus();
+                        await setCompleted(task.lineNumber, !task.completed);
+                    }
+                }, h('div', { className: `card-menu-checkbox ${task.completed ? 'checked' : ''}` }), h('span', { textContent: 'Completed' })),
+                h('button', {
+                    className: 'card-menu-item',
+                    textContent: 'Set project...',
+                    onclick: (e) => {
+                        e.stopPropagation();
+                        closeAllCardMenus();
+                        setProjectModal.open(task);
+                    }
+                }),
+                h('button', {
+                    className: 'card-menu-item',
+                    textContent: tracking ? 'Stop tracking' : 'Start tracking',
+                    onclick: async (e) => {
+                        e.stopPropagation();
+                        closeAllCardMenus();
+                        await toggleTracking(task.lineNumber);
+                    }
+                }),
+                id ? null : h('button', {
+                    className: 'card-menu-item',
+                    textContent: 'Assign ID',
+                    onclick: async (e) => {
+                        e.stopPropagation();
+                        closeAllCardMenus();
+                        await assignId(task.lineNumber);
+                    }
+                }),
+                h('button', {
+                    className: 'card-menu-item',
+                    textContent: 'Delete',
+                    onclick: async (e) => {
+                        e.stopPropagation();
+                        closeAllCardMenus();
+                        if (confirm('Are you sure you want to delete this card?')) await deleteTask(task.lineNumber);
+                    }
+                })
+            );
+
+            cardDiv.append(cardHeader, menu);
+
+            const chips = [];
+            projects.forEach(p => chips.push(h('span', { className: 'chip chip-project', textContent: `+${p}` })));
+            extraContexts.forEach(c => chips.push(h('span', { className: 'chip chip-context', textContent: `@${c}` })));
+            tags.forEach(t => chips.push(h('span', { className: 'chip chip-tag', textContent: `${t.key}:${t.value}` })));
+
+            const badges = [];
+            if (priority) badges.push(h('span', { className: 'badge badge-priority', textContent: `(${priority})` }));
+            if (due) badges.push(h('span', { className: `badge badge-due ${overdue ? 'alert' : ''}`, textContent: `due ${due}` }));
+            if (deferred) badges.push(h('span', { className: 'badge badge-deferred', textContent: `starts ${getTag(task.body, 't')}` }));
+            if (spent) badges.push(h('span', { className: 'badge badge-spent', textContent: `spent ${spent}` }));
+            if (tracking) badges.push(h('span', { className: 'badge badge-tracking', textContent: `⏱ ${liveElapsedStr(tracking)}` }));
+            if (id) badges.push(h('span', { className: 'badge badge-id', textContent: `#${id}` }));
+
+            if (chips.length || badges.length) {
+                const footer = h('div', { className: 'card-footer' });
+                if (badges.length) footer.append(h('div', { className: 'card-badges' }, ...badges));
+                if (chips.length) footer.append(h('div', { className: 'card-chips' }, ...chips));
+                cardDiv.append(footer);
             }
-            
-            moveModal.close();
+
+            return cardDiv;
         }
 
         function renderBoard() {
-            const section = state.sections[state.currentSectionIndex];
-            if (!section) return renderSectionPicker();
+            state.columns = buildColumns(state.tasks, state.projectFilter, state.pendingLanes);
+            renderProjectFilterDropdown();
+            updateMenuCheckbox('completed-checkbox', state.showCompleted);
+            updateMenuCheckbox('deferred-checkbox', state.showDeferred);
 
-            $('#board-title').textContent = section.name;
-            
-            updateCompletedCheckbox();
-            updateProjectSelector();
-            
+            currentLanes = {};
             const container = $('#board-container');
-            
-            const columns = section.columns.map((column, colIndex) => {
-                const visibleCards = column.cards.filter(card => 
-                    state.showCompleted || !card.completed
-                );
-                
+
+            const columns = state.columns.map((columnName, colIndex) => {
+                const laneTasks = computeLaneTasks(columnName);
+                currentLanes[columnName] = laneTasks;
+
                 const cardElements = [];
-                
-                if (visibleCards.length > 0) {
-                    cardElements.push(
-                        h('div', {
-                            className: 'drop-indicator',
-                            dataset: { colIndex, position: 0 }
-                        })
-                    );
+                if (laneTasks.length > 0) {
+                    cardElements.push(h('div', { className: 'drop-indicator', dataset: { colIndex, position: 0 } }));
                 }
-                
-                column.cards.forEach((card, cardIndex) => {
-                    if (!state.showCompleted && card.completed) return;
-                    
-                    const hasNestedContent = card.nestedLines.length > 0;
-                    const metadata = extractMetadata(card.nestedLines);
-                    const subtasks = countSubtasks(card.nestedLines);
-                    
-                    const cardDiv = h('div', {
-                        className: `card ${card.completed ? 'completed' : ''}`,
-                        draggable: true,
-                        dataset: {
-                            lineNumber: card.lineNumber,
-                            originalLine: card.originalLine,
-                            colIndex,
-                            cardIndex
-                        },
-                        ondragstart: (e) => handleDragStart(e, cardDiv),
-                        ondragend: handleDragEnd,
-                        ondragenter: (e) => handleCardDragEnter(e, cardDiv, colIndex, cardIndex),
-                        onclick: (e) => {
-                            if (!e.target.closest('.card-menu-btn')) {
-                                cardDetailModal.open(card);
-                            }
-                        }
-                    });
-                    
-                    const cardHeader = h('div', { className: 'card-header' });
-                    
-                    const cardText = h('span', { 
-                        className: 'card-text',
-                        textContent: card.text
-                    });
-                    
-                    const menuBtn = h('button', {
-                        className: 'card-menu-btn',
-                        textContent: '⋮',
-                        onclick: (e) => {
-                            e.stopPropagation();
-                            const menu = cardDiv.querySelector('.card-menu');
-                            const wasActive = menu.classList.contains('active');
-                            closeAllCardMenus();
-                            if (!wasActive) {
-                                menu.classList.add('active');
-                            }
-                        }
-                    });
-                    
-                    cardHeader.append(cardText, menuBtn);
-                    
-                    const checkbox = h('div', {
-                        className: `card-menu-checkbox ${card.completed ? 'checked' : ''}`
-                    });
-                    
-                    const completeItem = h('button', {
-                        className: 'card-menu-item',
-                        onclick: async (e) => {
-                            e.stopPropagation();
-                            closeAllCardMenus();
-                            const lineNum = getDataInt(cardDiv, 'lineNumber');
-                            const originalLine = cardDiv.dataset.originalLine;
-                            const newLine = originalLine.includes('- [x]')
-                                ? originalLine.replace('- [x]', '- [ ]')
-                                : originalLine.replace('- [ ]', '- [x]');
-                            await updateLineInFile(lineNum, newLine);
-                        }
-                    }, checkbox, h('span', { textContent: 'Completed' }));
-                    
-                    const moveItem = h('button', {
-                        className: 'card-menu-item',
-                        textContent: 'Move to project...',
-                        onclick: (e) => {
-                            e.stopPropagation();
-                            closeAllCardMenus();
-                            moveModal.open({
-                                cardLineNumber: getDataInt(cardDiv, 'lineNumber'),
-                                cardOriginalLine: cardDiv.dataset.originalLine,
-                                sourceColIndex: colIndex,
-                                sourceCardIndex: cardIndex
-                            });
-                        }
-                    });
-                    
-                    const deleteItem = h('button', {
-                        className: 'card-menu-item',
-                        textContent: 'Delete',
-                        onclick: async (e) => {
-                            e.stopPropagation();
-                            closeAllCardMenus();
-                            if (confirm('Are you sure you want to delete this card?')) {
-                                const lineNum = getDataInt(cardDiv, 'lineNumber');
-                                await deleteCard(lineNum);
-                            }
-                        }
-                    });
-                    
-                    const menu = h('div', {
-                        className: 'card-menu'
-                    }, completeItem, moveItem, deleteItem);
-                    
-                    cardDiv.append(cardHeader, menu);
-                    
-                    if (hasNestedContent || metadata.length > 0) {
-                        const cardFooter = h('div', { className: 'card-footer' });
-                        
-                        if (metadata.length > 0) {
-                            const metadataDiv = h('div', { className: 'card-metadata' });
-                            metadata.forEach(m => {
-                                const metadataLine = h('span', { 
-                                    className: 'card-expand-indicator',
-                                    textContent: m.key === 'tag' ? `#${m.value}` : `${m.key}: ${m.value}`
-                                });
-                                metadataDiv.append(metadataLine);
-                            });
-                            cardFooter.append(metadataDiv);
-                        }
-                        
-                        if (subtasks.total > 0) {
-                            const percentage = subtasks.total > 0 ? (subtasks.completed / subtasks.total) * 100 : 0;
-                            
-                            const cardFooterContent = h('div', { className: 'card-footer-content' });
-                            
-                            const expandIndicator = h('span', { 
-                                className: 'card-expand-indicator',
-                                textContent: `${subtasks.completed} / ${subtasks.total}`
-                            });
-                            
-                            const progressBar = h('div', { className: 'card-progress-bar' },
-                                h('div', { 
-                                    className: 'card-progress-fill',
-                                    style: { width: `${percentage}%` }
-                                })
-                            );
-                            
-                            cardFooterContent.append(expandIndicator, progressBar);
-                            cardFooter.append(cardFooterContent);
-                        } else if (metadata.length === 0) {
-                            const expandIndicator = h('span', { 
-                                className: 'card-expand-indicator',
-                                textContent: '+'
-                            });
-                            cardFooter.append(expandIndicator);
-                        }
-                        
-                        cardDiv.append(cardFooter);
-                    }
-                    
+
+                laneTasks.forEach((task, cardIndex) => {
                     cardElements.push(
-                        cardDiv,
-                        h('div', {
-                            className: 'drop-indicator',
-                            dataset: { colIndex, position: cardIndex + 1 }
-                        })
+                        renderCard(task, colIndex, cardIndex),
+                        h('div', { className: 'drop-indicator', dataset: { colIndex, position: cardIndex + 1 } })
                     );
                 });
-                
-                if (visibleCards.length === 0) {
-                    cardElements.push(
-                        h('div', {
-                            className: 'drop-indicator',
-                            dataset: { colIndex, position: 0 }
-                        })
-                    );
+
+                if (laneTasks.length === 0) {
+                    cardElements.push(h('div', { className: 'drop-indicator', dataset: { colIndex, position: 0 } }));
                 }
-                
+
                 const cardList = h('div', {
                     className: 'card-list',
                     dataset: { colIndex },
@@ -2262,7 +2060,7 @@ chmod 755 kbtd
                     ondrop: (e) => handleDrop(e, colIndex),
                     ondragleave: handleDragLeave
                 }, ...cardElements);
-                
+
                 const addCardBtn = h('button', {
                     className: 'add-card-btn',
                     textContent: '+',
@@ -2272,36 +2070,33 @@ chmod 755 kbtd
                         addCardForm.show();
                     }
                 });
-                
+
                 const addCardForm = createAddForm('Card text...', async (text) => {
-                    await createCard(colIndex, text);
+                    await createTaskInColumn(columnName, text);
                     addCardForm.hide();
                     addCardBtn.style.display = '';
                 }, () => {
                     addCardBtn.style.display = '';
                 });
-                
-                return h('div', {
-                    className: 'column',
-                    dataset: { colIndex }
-                },
-                    h('div', { className: 'column-header', textContent: column.name }),
+
+                return h('div', { className: 'column', dataset: { colIndex } },
+                    h('div', { className: 'column-header', textContent: columnName }),
                     cardList,
                     h('div', { className: 'column-footer' }, addCardBtn, addCardForm)
                 );
             });
-            
+
             const addColumnForm = createAddForm('Column name...', async (name) => {
-                const section = state.sections[state.currentSectionIndex];
-                if (section.columns.some(c => c.name === name)) {
+                if (state.columns.includes(name)) {
                     alert('A column with this name already exists');
                     return;
                 }
-                await createColumn(name);
+                if (!state.pendingLanes.includes(name)) state.pendingLanes.push(name);
                 addColumnForm.hide();
+                renderBoard();
             });
             addColumnForm.className = 'add-column-form';
-            
+
             const addColumnDiv = h('div', { className: 'add-column' },
                 h('button', {
                     className: 'add-column-btn',
@@ -2311,45 +2106,14 @@ chmod 755 kbtd
                 }),
                 addColumnForm
             );
-            
+
             container.replaceChildren(...columns, addColumnDiv);
             showScreen('board-screen');
         }
 
-        async function selectSection(index) {
-            state.currentSectionIndex = index;
-            if (state.filePath) {
-                const key = `kbtd:${state.filePath}`;
-                const uiState = { 
-                    currentSection: state.sections[index].name,
-                    showCompleted: state.showCompleted
-                };
-                localStorage.setItem(key, JSON.stringify(uiState));
-            }
-            renderBoard();
-        }
-
-        function toggleShowCompleted() {
-            state.showCompleted = !state.showCompleted;
-            
-            if (state.filePath) {
-                const key = `kbtd:${state.filePath}`;
-                const stored = localStorage.getItem(key);
-                let uiState = {};
-                if (stored) {
-                    try {
-                        uiState = JSON.parse(stored);
-                    } catch (e) { console.error(e); }
-                }
-                uiState.showCompleted = state.showCompleted;
-                localStorage.setItem(key, JSON.stringify(uiState));
-            }
-            
-            renderBoard();
-        }
+        // --- drag and drop ---
 
         function setActiveDropIndicator(colIndex, position) {
-            console.log('Setting active drop indicator: col', colIndex, 'position', position);
             $$('.drop-indicator').forEach(el => el.classList.remove('active'));
             const indicator = $(`.drop-indicator[data-col-index="${colIndex}"][data-position="${position}"]`);
             if (indicator) indicator.classList.add('active');
@@ -2374,7 +2138,6 @@ chmod 755 kbtd
             e.target.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/plain', JSON.stringify(dragState.source));
-            console.log('Drag started:', dragState.source);
         }
 
         function handleDragEnd(e) {
@@ -2385,107 +2148,87 @@ chmod 755 kbtd
 
         function handleCardDragEnter(e, cardDiv, colIndex, cardIndex) {
             if (!dragState.source) return;
-            
             e.preventDefault();
             e.stopPropagation();
-            
             const rect = cardDiv.getBoundingClientRect();
             const midpoint = rect.top + rect.height / 2;
             const position = e.clientY < midpoint ? cardIndex : cardIndex + 1;
-            
             setActiveDropIndicator(colIndex, position);
         }
 
         function handleDragOver(e, colIndex, cardList) {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
-            
             if (!dragState.source) return;
-            
+
             const cards = Array.from(cardList.querySelectorAll('.card'));
-            
             if (cards.length === 0) {
-                console.log('Drag over empty column', colIndex);
                 setActiveDropIndicator(colIndex, 0);
                 return;
             }
-            
-            let closestCard = null;
-            let closestDistance = Infinity;
-            let insertBefore = true;
-            
+
+            let closestCard = null, closestDistance = Infinity, insertBefore = true;
             cards.forEach(card => {
                 const rect = card.getBoundingClientRect();
                 const midpoint = rect.top + rect.height / 2;
                 const distance = Math.abs(e.clientY - midpoint);
-                
                 if (distance < closestDistance) {
                     closestDistance = distance;
                     closestCard = card;
                     insertBefore = e.clientY < midpoint;
                 }
             });
-            
+
             if (closestCard) {
                 const cardIndex = getDataInt(closestCard, 'cardIndex');
-                const position = insertBefore ? cardIndex : cardIndex + 1;
-                setActiveDropIndicator(colIndex, position);
+                setActiveDropIndicator(colIndex, insertBefore ? cardIndex : cardIndex + 1);
             }
         }
 
-        function handleDragLeave(e) {
-            if (e.target.classList.contains('card-list')) {
-                const relatedTarget = e.relatedTarget;
-                if (!relatedTarget || !e.currentTarget.contains(relatedTarget)) {
-                    console.log('Drag leave card-list');
-                }
-            }
-        }
+        function handleDragLeave() {}
 
         async function handleDrop(e, targetColIndex) {
             e.stopPropagation();
             e.preventDefault();
-            
+
             const dropTarget = getActiveDropIndicator();
             $$('.drop-indicator').forEach(el => el.classList.remove('active'));
-            
-            if (!dragState.source || !dropTarget) {
-                console.log('Drop ignored: no source or target');
-                return;
-            }
-            
+
+            if (!dragState.source || !dropTarget) return;
+
             const sourceColIndex = dragState.source.colIndex;
             const sourceLineNumber = dragState.source.lineNumber;
             const targetPosition = dropTarget.position;
-            
-            console.log('Drop: sourceCol', sourceColIndex, 'targetCol', targetColIndex, 'position', targetPosition);
-            
+
             if (sourceColIndex === targetColIndex) {
                 const sourceCardIndex = dragState.source.cardIndex;
                 if (targetPosition === sourceCardIndex || targetPosition === sourceCardIndex + 1) {
-                    console.log('Same position, ignoring drop');
                     dragState.source = null;
                     return;
                 }
             }
-            
-            const section = state.sections[state.currentSectionIndex];
-            const targetColumn = section.columns[targetColIndex];
-            
-            console.log('Target column:', targetColumn.name, 'position:', targetPosition);
-            
-            await moveLineInFile(sourceLineNumber, 0, targetColIndex, targetPosition);
-            
+
+            const targetColumnName = state.columns[targetColIndex];
+            const laneTasks = currentLanes[targetColumnName] || [];
+            const origIndex = laneTasks.findIndex(t => t.lineNumber === sourceLineNumber);
+            const effectivePosition = (origIndex !== -1 && targetPosition > origIndex) ? targetPosition - 1 : targetPosition;
+            const withoutDragged = laneTasks.filter((_, i) => i !== origIndex);
+            const prev = effectivePosition > 0 ? withoutDragged[effectivePosition - 1] : null;
+            const next = withoutDragged[effectivePosition] || null;
+
+            const newPriority = prev ? sortPriority(prev) : (next ? sortPriority(next) : null);
+            const newContext = sourceColIndex === targetColIndex ? undefined : targetColumnName;
+
+            await applyDrop(sourceLineNumber, newContext, newPriority);
             dragState.source = null;
-            return false;
         }
 
         let modalMousedownTarget = null;
-        
+
         document.addEventListener('mousedown', (e) => {
             modalMousedownTarget = e.target;
         });
-        
+
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.card-menu') && !e.target.closest('.card-menu-btn')) {
                 closeAllCardMenus();
@@ -2505,77 +2248,64 @@ chmod 755 kbtd
             modalMousedownTarget = null;
         });
 
-        function getTextareaLineHeight(textarea) {
-            const style = window.getComputedStyle(textarea);
-            return parseFloat(style.lineHeight) ||
-                parseFloat(style.fontSize) * 1.2;
-        }
+        setInterval(() => {
+            if ($('#board-screen').classList.contains('active')) renderBoard();
+        }, 30000);
 
-        function calcTextareaHeight(textarea, rows) {
-            const lineHeight = getTextareaLineHeight(textarea);
-            const style = window.getComputedStyle(textarea);
-            const padding = parseFloat(style.paddingTop) +
-                parseFloat(style.paddingBottom);
-            const border = parseFloat(style.borderTopWidth) +
-                parseFloat(style.borderBottomWidth);
-            return rows * lineHeight + padding + border;
-        }
+        // --- file loading / startup ---
 
-        function modalOverflows(textarea, modal, rows) {
-            textarea.style.height = calcTextareaHeight(textarea, rows) + 'px';
-            return modal.scrollHeight > modal.clientHeight;
-        }
+        async function loadFile() {
+            try {
+                const file = await state.fileHandle.getFile();
+                state.lastModified = file.lastModified;
+                const text = await file.text();
+                state.tasks = parseTodoTxt(text);
 
-        function resizeDetailTextarea() {
-            const textarea = $('#card-detail-content-textarea');
-            const modal = textarea.closest('.modal-content');
-            const minRows = 8;
-            const lineCount = textarea.value.split('\n').length;
-            const desiredRows = Math.max(minRows, lineCount + 1);
-
-            if (!modalOverflows(textarea, modal, desiredRows)) return;
-
-            let lo = minRows;
-            let hi = desiredRows;
-            while (lo < hi) {
-                const mid = Math.ceil((lo + hi) / 2);
-                if (modalOverflows(textarea, modal, mid)) {
-                    hi = mid - 1;
-                } else {
-                    lo = mid;
+                if (state.filePath) {
+                    const stored = localStorage.getItem(`kbtd:${state.filePath}`);
+                    if (stored) {
+                        try {
+                            const ui = JSON.parse(stored);
+                            state.projectFilter = ui.projectFilter ? new Set(ui.projectFilter) : null;
+                            if (ui.showCompleted !== undefined) state.showCompleted = ui.showCompleted;
+                            if (ui.showDeferred !== undefined) state.showDeferred = ui.showDeferred;
+                        } catch (e) { console.error(e); }
+                    }
                 }
+
+                renderBoard();
+            } catch (err) {
+                console.error('Error loading file:', err);
+                throw err;
             }
-            textarea.style.height = calcTextareaHeight(textarea, lo) + 'px';
         }
 
-        window.addEventListener('resize', () => {
-            if ($('#card-detail-modal').classList.contains('active')) {
-                resizeDetailTextarea();
-            }
-        });
-
-        $('#card-detail-title-input').addEventListener('input', updateCardDetailButtons);
-        $('#card-detail-content-textarea').addEventListener('input', () => {
-            updateCardDetailButtons();
-            resizeDetailTextarea();
-        });
+        function startPolling() {
+            setInterval(async () => {
+                if (!state.fileHandle) return;
+                try {
+                    const file = await state.fileHandle.getFile();
+                    if (file.lastModified > state.lastModified) {
+                        await loadFile();
+                    }
+                } catch (e) {
+                    console.error('Polling error:', e);
+                }
+            }, 250);
+        }
 
         async function openRecentProject(projectName) {
-            console.log('Opening recent project:', projectName);
             state.filePath = projectName;
-            
             const newUrl = `${window.location.pathname}?file=${encodeURIComponent(projectName)}`;
             window.history.pushState({}, '', newUrl);
-            
+
             try {
                 const handle = await getFileHandle(projectName);
                 if (!handle) {
-                    $('#landing-error').textContent = 
-                        `Could not find stored file handle for: ${projectName}`;
+                    $('#landing-error').textContent = `Could not find stored file handle for: ${projectName}`;
                     $('#landing-error').style.display = 'block';
                     return;
                 }
-                
                 state.fileHandle = handle;
                 const perm = await handle.queryPermission({ mode: 'readwrite' });
                 if (perm === 'granted') {
@@ -2586,14 +2316,12 @@ chmod 755 kbtd
                 }
             } catch (err) {
                 console.error('Error loading project:', err);
-                $('#landing-error').textContent = 
-                    `This file is no longer accessible. Please select it again.`;
+                $('#landing-error').textContent = `This file is no longer accessible. Please select it again.`;
                 $('#landing-error').style.display = 'block';
             }
         }
 
         async function removeRecentProject(projectName) {
-            console.log('Removing recent project:', projectName);
             await removeFileHandle(projectName);
             await renderRecentProjects();
         }
@@ -2601,8 +2329,6 @@ chmod 755 kbtd
         async function renderRecentProjects() {
             try {
                 const projects = await getAllStoredProjects();
-                console.log('Recent projects:', projects);
-                
                 if (projects.length > 0) {
                     const projectsWithStatus = await Promise.all(
                         projects.map(async (projectName) => {
@@ -2611,13 +2337,13 @@ chmod 755 kbtd
                             return { projectName, status };
                         })
                     );
-                    
+
                     const list = $('#recent-projects-list');
                     list.replaceChildren(
                         ...projectsWithStatus.map(({ projectName, status }) => {
                             const isClickable = status === 'valid' || status === 'needs-permission';
                             const showWarning = status === 'not-found' || status === 'error';
-                            
+
                             return h('li', { className: 'recent-project-item' },
                                 h('button', {
                                     className: `recent-project-btn ${isClickable ? '' : 'unavailable'}`,
@@ -2625,10 +2351,7 @@ chmod 755 kbtd
                                         alert('This file is no longer accessible. Please select it again or remove it from the list.');
                                     }
                                 },
-                                    showWarning ? h('span', { 
-                                        className: 'recent-project-warning',
-                                        textContent: '⚠ '
-                                    }) : null,
+                                    showWarning ? h('span', { className: 'recent-project-warning', textContent: '⚠ ' }) : null,
                                     h('span', { textContent: projectName })
                                 ),
                                 h('button', {
@@ -2660,15 +2383,15 @@ chmod 755 kbtd
             insertInstallInstructions('about-instructions');
             insertSourceCopyright('landing-source-copyright');
             insertSourceCopyright('about-source-copyright');
-            
+
             setupEventHandlers();
-            
+
             if (!checkFileSystemAccessAPI()) {
                 $('#api-warning').style.display = 'block';
                 $('#about-api-warning').style.display = 'block';
                 $('#open-file-btn').disabled = true;
             }
-            
+
             const params = new URLSearchParams(window.location.search);
             state.filePath = params.get('file');
 
@@ -2700,181 +2423,121 @@ chmod 755 kbtd
             }
         }
 
-        function startPolling() {
-            setInterval(async () => {
-                if (!state.fileHandle) return;
-                try {
-                    const file = await state.fileHandle.getFile();
-                    if (file.lastModified > state.lastModified) {
-                        console.log('File changed externally, reloading...');
-                        await loadFile();
-                    }
-                } catch (e) {
-                    console.error('Polling error:', e);
-                }
-            }, 250);
-        }
-
         function setupEventHandlers() {
             $('#open-file-btn').onclick = async () => {
-            const projectNameInput = $('#project-name-input');
-            const projectName = projectNameInput.value.trim();
-            
-            if (!projectName) {
-                alert('Please enter a project name');
-                return;
-            }
-            
-            try {
-                const [handle] = await window.showOpenFilePicker({
-                    id: 'kbtd-todo-file',
-                    mode: 'readwrite',
-                    types: [{
-                        description: 'Markdown files',
-                        accept: { 'text/markdown': ['.md'] }
-                    }]
-                });
-                
-                state.fileHandle = handle;
-                state.filePath = projectName;
-                
-                await storeFileHandle(projectName, handle);
-                
-                const newUrl = `${window.location.pathname}?file=${encodeURIComponent(projectName)}`;
-                window.history.pushState({}, '', newUrl);
-                
-                await loadFile();
-                startPolling();
-                
-            } catch (err) {
-                if (err.name !== 'AbortError') {
-                    console.error(err);
-                    alert('Error opening file');
+                const projectNameInput = $('#project-name-input');
+                const projectName = projectNameInput.value.trim();
+
+                if (!projectName) {
+                    alert('Please enter a project name');
+                    return;
                 }
-            }
-        };
 
-        $('#project-name-input').onkeypress = (e) => {
-            if (e.key === 'Enter') {
-                $('#open-file-btn').click();
-            }
-        };
+                try {
+                    const [handle] = await window.showOpenFilePicker({
+                        id: 'kbtd-todo-file',
+                        mode: 'readwrite',
+                        types: [{
+                            description: 'todo.txt files',
+                            accept: { 'text/plain': ['.txt'] }
+                        }]
+                    });
 
-        $('#grant-permission-btn').onclick = async () => {
-            if (state.fileHandle) {
-                if (await checkPermission(state.fileHandle)) {
+                    state.fileHandle = handle;
+                    state.filePath = projectName;
+
+                    await storeFileHandle(projectName, handle);
+
+                    const newUrl = `${window.location.pathname}?file=${encodeURIComponent(projectName)}`;
+                    window.history.pushState({}, '', newUrl);
+
                     await loadFile();
                     startPolling();
+                } catch (err) {
+                    if (err.name !== 'AbortError') {
+                        console.error(err);
+                        alert('Error opening file');
+                    }
+                }
+            };
+
+            $('#project-name-input').onkeypress = (e) => {
+                if (e.key === 'Enter') $('#open-file-btn').click();
+            };
+
+            $('#grant-permission-btn').onclick = async () => {
+                if (state.fileHandle) {
+                    if (await checkPermission(state.fileHandle)) {
+                        await loadFile();
+                        startPolling();
+                    } else {
+                        showScreen('landing-screen');
+                    }
                 } else {
                     showScreen('landing-screen');
                 }
-            } else {
+            };
+
+            $('#burger-btn').onclick = () => {
+                $('#burger-menu').classList.toggle('active');
+            };
+
+            $('#toggle-completed-menu-item').onclick = () => toggleShowCompleted();
+            $('#toggle-deferred-menu-item').onclick = () => toggleShowDeferred();
+
+            $('#change-file-menu-item').onclick = () => {
+                closeBurgerMenu();
                 showScreen('landing-screen');
-            }
-        };
+                $('#project-name-input').value = state.filePath || '';
+            };
 
-        $('#burger-btn').onclick = () => {
-            $('#burger-menu').classList.toggle('active');
-        };
+            $('#about-menu-item').onclick = () => {
+                closeBurgerMenu();
+                aboutModal.open();
+            };
 
-        $('#toggle-completed-menu-item').onclick = () => {
-            toggleShowCompleted();
-        };
+            $('#about-close-btn').onclick = () => aboutModal.close();
 
-        $('#back-menu-item').onclick = () => {
-            closeBurgerMenu();
-            state.currentSectionIndex = -1;
-            renderSectionPicker();
-        };
+            $('#project-select-btn').onclick = () => {
+                $('#project-select-dropdown').classList.toggle('active');
+            };
 
-        $('#about-menu-item').onclick = () => {
-            closeBurgerMenu();
-            aboutModal.open();
-        };
+            $('#set-project-cancel-btn').onclick = () => setProjectModal.close();
+            $('#set-project-confirm-btn').onclick = async () => {
+                const project = $('#set-project-input').value.trim() || null;
+                const column = $('#set-project-column-select').value;
+                await setProjectAndContext(setProjectModalState.lineNumber, project, column);
+                setProjectModal.close();
+            };
 
-        $('#about-close-btn').onclick = () => {
-            aboutModal.close();
-        };
+            $('#select-file-btn').onclick = async () => {
+                try {
+                    const [handle] = await window.showOpenFilePicker({
+                        id: 'kbtd-todo-file',
+                        mode: 'readwrite',
+                        types: [{
+                            description: 'todo.txt files',
+                            accept: { 'text/plain': ['.txt'] }
+                        }]
+                    });
 
-        $('#change-file-btn').onclick = () => {
-            showScreen('landing-screen');
-            $('#project-name-input').value = state.filePath || '';
-        };
-
-        $('#create-project-btn').onclick = async () => {
-            const input = $('#new-project-input');
-            const projectName = input.value.trim();
-            
-            if (!projectName) {
-                alert('Please enter a project name');
-                return;
-            }
-            
-            if (state.sections.some(s => s.name === projectName)) {
-                alert('A project with this name already exists');
-                return;
-            }
-            
-            await createProject(projectName);
-        };
-
-        $('#new-project-input').onkeypress = (e) => {
-            if (e.key === 'Enter') {
-                $('#create-project-btn').click();
-            }
-        };
-
-        $('#target-project-select').onchange = () => {
-            const currentSection = state.sections[state.currentSectionIndex];
-            const currentColumn = currentSection.columns[moveModalState.sourceColIndex];
-            const currentColumnName = currentColumn ? currentColumn.name : null;
-            updateColumnSelect(currentColumnName);
-        };
-
-        $('#move-cancel-btn').onclick = () => {
-            moveModal.close();
-        };
-
-        $('#move-confirm-btn').onclick = async () => {
-            await confirmMove();
-        };
-
-        $('#project-select-btn').onclick = () => {
-            $('#project-select-dropdown').classList.toggle('active');
-        };
-
-        $('#select-file-btn').onclick = async () => {
-            try {
-                const [handle] = await window.showOpenFilePicker({
-                    id: 'kbtd-todo-file',
-                    mode: 'readwrite',
-                    types: [{
-                        description: 'Markdown files',
-                        accept: { 'text/markdown': ['.md'] }
-                    }]
-                });
-                
-                state.fileHandle = handle;
-                
-                await storeFileHandle(state.filePath, handle);
-                
-                await loadFile();
-                startPolling();
-                
-            } catch (err) {
-                if (err.name !== 'AbortError') {
-                    console.error(err);
-                    alert('Error opening file');
+                    state.fileHandle = handle;
+                    await storeFileHandle(state.filePath, handle);
+                    await loadFile();
+                    startPolling();
+                } catch (err) {
+                    if (err.name !== 'AbortError') {
+                        console.error(err);
+                        alert('Error opening file');
+                    }
                 }
-            }
-        };
-
+            };
         }
 
         // PWA setup
         function setupPWA() {
             const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 24 24"><rect width="24" height="24" rx="4" fill="#112"/><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 4l6 0" stroke="#ffe" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M14 4l6 0" stroke="#ffe" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M4 10a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -8" stroke="#ffe" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M14 10a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -2" stroke="#ffe" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`;
-            
+
             const manifest = {
                 name: 'Kanban TODO',
                 short_name: 'Kanban TODO',
@@ -2888,34 +2551,30 @@ chmod 755 kbtd
                     type: 'image/svg+xml'
                 }]
             };
-            
+
             const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
             const manifestURL = URL.createObjectURL(manifestBlob);
             $('#manifest-placeholder').href = manifestURL;
-            
+
             if ('serviceWorker' in navigator) {
                 const swCode = `
                     self.addEventListener('install', (e) => {
-                        console.log('Service Worker installed');
                         self.skipWaiting();
                     });
-                    
+
                     self.addEventListener('activate', (e) => {
-                        console.log('Service Worker activated');
                         return self.clients.claim();
                     });
-                    
+
                     self.addEventListener('fetch', (e) => {
                         e.respondWith(fetch(e.request));
                     });
                 `;
-                
+
                 const swBlob = new Blob([swCode], { type: 'application/javascript' });
                 const swURL = URL.createObjectURL(swBlob);
-                
-                navigator.serviceWorker.register(swURL).then(() => {
-                    console.log('Service Worker registered');
-                }).catch((err) => {
+
+                navigator.serviceWorker.register(swURL).catch((err) => {
                     console.error('Service Worker registration failed:', err);
                 });
             }

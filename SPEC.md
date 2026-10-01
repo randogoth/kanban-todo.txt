@@ -1,56 +1,51 @@
 # KBTD - Kanban TODO
 
-A minimal Kanban board web app that uses a Markdown file as its data store.
+A minimal Kanban board web app that uses a [todo.txt](https://github.com/todotxt/todo.txt) file as its data store, compatible with the wider todo.txt ecosystem ([kanto](https://hg.sr.ht/~ser/kanto)'s board mapping, [pter](https://codeberg.org/pter/pter)'s metadata tags).
 
 ## Overview
 
-KBTD presents a Kanban board interface for managing tasks stored in a standard Markdown TODO file. The Markdown file is the canonical data store—the app provides a visual interface for viewing and manipulating it.
+KBTD presents a Kanban board interface for managing tasks stored in a standard todo.txt file. The file is the canonical data store — the app provides a visual interface for viewing and manipulating it. There is one board per file; projects are a filter over that single board, not separate boards.
 
 ## Core Concepts
 
 | Term | Description |
 |------|-------------|
-| **Project** | A working directory containing a TODO.md file (identified by absolute file path) |
-| **Section** | An H1 (`# Name`) in the TODO file — rendered as a selectable Kanban board |
-| **Column** | An H2 (`## Name`) under a section — a column within that board |
-| **Card** | A `- [ ]` or `- [x]` item — draggable between columns |
+| **Task** | One line in the todo.txt file — draggable between columns |
+| **Project** | A `+project` tag on a task — a multi-select filter (OR) over the whole board, plus a `(no project)` entry |
+| **Column** | A `@context` tag — derived from the project-filtered task set, ordered by first appearance. Contextless tasks land in a virtual `Queue` column (hidden when empty) |
 
-## Markdown Format
+## todo.txt Format
 
-```markdown
-# Project Alpha
-
-## Backlog
-
-- [ ] Research competitors
-- [ ] Write RFC
-
-## In Progress
-
-- [x] Design mockups
-- [ ] Build prototype
-
-## Done
-
-- [x] Initial brainstorm
-
-# Project Beta
-
-## TODO
-
-- [ ] Something else
+```
+(A) Research competitors +website @backlog
+Write RFC +website @backlog due:2026-11-01
+x 2026-09-30 2026-09-20 Design mockups +website @inprogress pri:B
+Build prototype +website @inprogress
+x 2026-09-15 Initial brainstorm +website @done
+Something else +app
 ```
 
 ### Parsing Rules
 
-- H1 headers (`#`) define sections (boards)
-- H2 headers (`##`) define columns within the preceding section
-- `- [ ]` is an incomplete task
-- `- [x]` is a complete task
-- Task text is everything after the `] ` until end of line
-- Content before the first H1 is ignored
-- Content between H1 and first H2 is ignored
-- Nested content under tasks (indented lines) is preserved but not displayed
+A task line tokenises as `[x] [completion-date] [(priority)] [creation-date] <body>`, tolerant on read of priority appearing either before or after the dates (some todo.txt clients write it differently). The `body` is kept as a raw string and never re-serialised — `+project`, `@context` and `key:value` tags, and the display title, are regex-derived views over it. This preserves the user's own text layout.
+
+- `x ` prefix marks a task complete; the following date is the completion date
+- `(A)`–`(Z)` is the priority; for a completed task the priority is carried as a `pri:A` tag in the body instead of the prefix
+- `+project` and `@context` tags are free text within the body; a task can carry several of each
+- `due:`, `t:`, `id:`, `tracking:`, `spent:` are [pter](https://codeberg.org/pter/pter)-compatible metadata tags (see below)
+- Blank lines are preserved in the file but are not tasks
+- A task's column is its *first* `@context`; additional contexts are preserved and shown as chips (a multi-context task is rendered once, not duplicated across columns)
+- Cards within a column sort `(A)`→`(Z)`, unprioritised last, ties by file order
+
+### Metadata Tags (pter-compatible)
+
+| Tag | Format | Behaviour |
+|---|---|---|
+| `due:` | `YYYY-MM-DD` | Display badge only, coloured when overdue/today. Does not affect sort order |
+| `t:` | `YYYY-MM-DD` | Threshold/defer date. Future-dated cards render dimmed with a "starts" badge; "Show deferred" toggle controls visibility (defaults to showing) |
+| `id:` | `<prefix><int>` | Parsed, displayed and preserved always; allocated on demand via "Assign ID" |
+| `tracking:` | `YYYY-MM-DD-HH-MM-SS` | Presence means the clock is running; started/stopped via "Start/Stop tracking" |
+| `spent:` | `<N>h<N>m` | Accumulated time; updated when tracking stops |
 
 ## Architecture
 
@@ -63,7 +58,7 @@ KBTD presents a Kanban board interface for managing tasks stored in a standard M
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  TODO.md    │◄───►│  Web App    │◄───►│ localStorage│
+│  todo.txt   │◄───►│  Web App    │◄───►│ localStorage│
 │  (file)     │     │  (browser)  │     │ (UI state)  │
 └─────────────┘     └─────────────┘     └─────────────┘
       │                    │
@@ -75,9 +70,10 @@ KBTD presents a Kanban board interface for managing tasks stored in a standard M
 
 ### State Management
 
-- **File state**: The TODO.md file is the source of truth for task data
-- **UI state**: localStorage stores current section selection, keyed by file path
+- **File state**: The todo.txt file is the source of truth for task data
+- **UI state**: localStorage stores project filter and show-completed/show-deferred toggles, keyed by file path
 - **File handle**: IndexedDB stores the FileSystemFileHandle for persistence across sessions
+- **Session-only state**: a column created via "Add column" before any task uses it lives only in memory (`state.pendingLanes`) until a task lands in it, or vanishes on reload
 
 #### localStorage Schema
 
@@ -85,9 +81,13 @@ Key: `kbtd:${filePath}`
 
 ```json
 {
-  "currentSection": "Project Alpha"
+  "projectFilter": ["website"],
+  "showCompleted": true,
+  "showDeferred": true
 }
 ```
+
+`projectFilter: null` means all projects. A `(no project)` entry in the filter is represented by a reserved sentinel string, not a real project name.
 
 #### IndexedDB Schema
 
@@ -102,35 +102,32 @@ Value: FileSystemFileHandle
 
 1. **No file associated**: Shows file picker button and instructions
 2. **Permission needed**: Shows button to re-grant permission (after page reload)
-3. **File not found**: Shows error message if TODO.md doesn't exist
-4. **Section picker**: Shows list of sections (H1s) to choose from
-5. **Kanban board**: Shows columns and cards for selected section
+3. **File not found**: Shows error message if the file doesn't exist
+4. **Kanban board**: Shows columns and cards directly — there is no separate board-picker screen
 
 ### Kanban Board Features
 
-- Columns displayed horizontally
-- Cards displayed vertically within columns
-- Drag and drop cards between columns
-- Click card to toggle complete/incomplete
-- Visual distinction for completed tasks (strikethrough or muted)
-
-### Navigation
-
-- Back button to return to section picker
-- Current section name displayed in header
+- Columns displayed horizontally, derived from the file (see Parsing Rules)
+- Cards displayed vertically within columns, sorted by priority
+- Drag and drop within a column sets the dragged card's priority letter (inherited from its new neighbours)
+- Drag and drop across columns rewrites the card's `@context` and sets its priority together, in one write
+- Card face shows title, `+project` chips, priority/due/spent/tracking badges, an `id:` chip and chips for any other tags
+- Header project filter is a multi-select checklist (OR across selected projects), plus a `(no project)` entry
+- Card menu: Completed, Set project..., Start/Stop tracking, Assign ID, Delete
+- Card detail modal: free-text body, priority, due date, start (`t:`) date, spent, start/stop tracking, ID
 
 ## File Synchronization
 
 ### Polling
 
 - Poll file every 250ms using `file.lastModified`
-- On change detected: reload file, rebuild state, re-render UI
-- If currently selected section no longer exists: return to section picker
+- On change detected: reload file, re-derive columns, re-render UI
 
 ### Write Strategy
 
-- On any card move or status toggle: serialize full state to Markdown and write
+- Every mutation is a single-line edit via `modifyFileLines`; other lines are never rewritten
 - Use `FileSystemFileHandle.createWritable()` for atomic writes
+- After every write, the app re-reads and re-parses the file, so the UI always reflects exactly what's on disk
 
 ### Conflict Resolution
 
@@ -141,7 +138,7 @@ None. Last write wins. External changes blow away app state.
 ### Usage
 
 ```bash
-kbtd [OPTIONS] <path-to-markdown-file>
+kbtd [OPTIONS] <path-to-todo.txt-file>
 
 Options:
   --browser    Open in existing browser instead of app mode
@@ -150,7 +147,7 @@ Options:
 
 ### Behavior
 
-1. Resolve the markdown file path to absolute path
+1. Resolve the todo.txt file path to absolute path
 2. Locate a Chromium-based browser (Chrome, Chromium, Edge)
 3. Determine mode:
    - Default: `--app` mode with isolated `--user-data-dir` in current directory
@@ -166,24 +163,6 @@ Check in order:
 4. WSL: `/mnt/c/Program Files/Google/Chrome/Application/chrome.exe`, etc.
 
 If no Chromium browser found: exit with error message explaining requirement.
-
-### App Mode Launch
-
-```bash
-# Create isolated user data directory
-USER_DATA_DIR="./.kbtd-chrome-data"
-
-# Launch in app mode
-google-chrome \
-  --user-data-dir="$USER_DATA_DIR" \
-  --app="http://localhost:8000/?file=/absolute/path/to/TODO.md"
-```
-
-### Browser Mode Launch
-
-```bash
-google-chrome --new-window "http://localhost:8000/?file=/absolute/path/to/TODO.md"
-```
 
 ### URL Configuration
 
@@ -208,8 +187,7 @@ google-chrome --new-window "http://localhost:8000/?file=/absolute/path/to/TODO.m
    → Show file picker button
 6. On file picker success:
    → Store handle in IndexedDB
-   → Load and parse file
-   → Show section picker or board
+   → Load and parse file, show board directly
 ```
 
 ### File Picker
@@ -219,8 +197,8 @@ const [fileHandle] = await window.showOpenFilePicker({
   id: 'kbtd-todo-file',
   mode: 'readwrite',
   types: [{
-    description: 'Markdown files',
-    accept: { 'text/markdown': ['.md'] }
+    description: 'todo.txt files',
+    accept: { 'text/plain': ['.txt'] }
   }]
 });
 ```
@@ -239,9 +217,7 @@ This requires a user gesture (button click).
 
 **Required**: Chromium-based browser (Chrome 86+, Edge 86+, Opera 72+)
 
-**Not supported**: Firefox, Safari (File System Access API not implemented)
-
-The shell script should detect and warn if no compatible browser is found.
+**Not supported**: Firefox, Safari (File System Access API not implemented). See "Out of scope" below for the planned HTTP-backend follow-up that would lift this restriction.
 
 ## File Structure
 
@@ -252,52 +228,28 @@ kbtd/
 └── SPEC.md         # This specification
 ```
 
-## Landing Page
-
-When loaded without a `?file=` parameter, the app displays:
-
-1. App name and brief description
-2. Instructions for use
-3. Download link/instructions for the shell script
-4. Note about Chromium browser requirement
-
 ## Architecture Principles
 
 ### Source of Truth
 
-The Markdown file is the **only** source of truth. The Kanban UI is purely a renderer and editor for the file. There is no separate application state that needs to be "synced" with the file.
-
-### Functional & Idempotent Design
-
-- **Pure parsing**: `parseMarkdown(text) → {sections, columns, cards}` — same input always produces same output
-- **Pure serialization**: `serializeToMarkdown(data) → text` — same input always produces same output
-- **Idempotent renders**: `render(data)` can be called any number of times with the same data and produce the same DOM
-- **No hidden state**: UI state (current section) is minimal and stored separately from task data
-- **Stateless transformations**: operations like `moveCard(data, cardIndex, fromColumn, toColumn) → newData` return new data structures rather than mutating
+The todo.txt file is the **only** source of truth. The Kanban UI is purely a renderer and editor for the file. There is no separate application state that needs to be "synced" with the file.
 
 ### Data Flow
 
 ```
-File Change → Read File → Parse → Render
-User Action → Transform Data → Serialize → Write File → Read File → Parse → Render
+File Change → Read File → Parse → Derive columns → Render
+User Action → Modify one line → Write File → Read File → Parse → Derive columns → Render
 ```
 
-Note: After every write, the app re-reads and re-parses the file. This ensures the file remains the source of truth and the UI always reflects exactly what's on disk.
+## Non-Goals
 
-## Non-Goals (v1)
-
-- No task metadata (due dates, tags, assignees)
-- No task IDs or UUIDs
+- No task descriptions/subtasks — todo.txt has no convention for them, so indented detail lines are not supported
 - No multi-file support
-- No task details/descriptions (subtasks, notes)
 - No offline support beyond what the browser provides
 - No collaborative editing
 - No mobile support
-- No server component (pure client-side)
+- No server component (pure client-side) — see "Out of scope" below
 
-## Future Considerations
+## Out of Scope (follow-up change)
 
-- Task detail files in `.issues/` subdirectory
-- UUID-based task tracking for stable identity
-- Folder access instead of single file
-- Multiple TODO files in project
+The data layer is the File System Access API throughout, which Firefox and Safari don't implement. A planned follow-up gives `kbtd` a loopback HTTP server (`GET /` → index.html, `GET`/`HEAD`/`PUT /file` with ETag + If-Match) and splits index.html's I/O behind a backend interface (`FsaBackend` for today's self-hosted story, `HttpBackend` for Firefox/Safari/mobile), binding 127.0.0.1 on a random port with a per-launch token. Not part of this change.

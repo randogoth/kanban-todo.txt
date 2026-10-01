@@ -1,0 +1,30 @@
+Automation option to move to 'done' column when checked +main-project @backlog
+Minimize the number of times the user is asked for access. +main-project @backlog
+Remove serviceworker Blob registration +main-project @todo
+x 2026-10-01 Display sub-lines of the form `key: value` immediately after item +main-project @done
+x 2026-10-01 Project list pulldown in top right +main-project @done
+x 2026-10-01 Make it a proper PWA with the minimal-pwa technique +main-project @done
+x 2026-10-01 Extract and consolidate indent detection functions +main-project @done
+x 2026-10-01 Reduce IndexedDB boilerplate with generic DB operation wrapper +main-project @done
+x 2026-10-01 Simplify drop indicator logic +main-project @done
+x 2026-10-01 Extract file operations into higher-level abstraction +main-project @done
+x 2026-10-01 Consolidate modal logic into generic modal handler +main-project @done
+x 2026-10-01 Warning colored note on home and about page if browser doesn't support FileSystem Access API. +main-project @done
+x 2026-10-01 Ability to delete an item, with confirmation. +main-project @done
+x 2026-10-01 When the dots menu shows on a 'completed' item the stuff behind it shows through +main-project @done
+x 2026-10-01 Pressing + in a column and then cancel removes the button entirely +main-project @done
+x 2026-10-01 Group all indented lines after each item with the item +main-project @done
+x 2026-10-01 Link to source for self-hosting +main-project @done
+x 2026-10-01 About page in top right menu +main-project @done
+x 2026-10-01 Allow scroll if the informational screen is cut off. +main-project @done
+x 2026-10-01 Can we make the columns vertically fill the available space? +main-project @done
+x 2026-10-01 Plus button in the columns to add a new item, with text input. +main-project @done
+x 2026-10-01 Ability to create columns. +main-project @done
+x 2026-10-01 Moving cards around janks the file. +main-project @done
+x 2026-10-01 When dragging between columns we should show the insertion point and insert the card at that point. +main-project @done
+x 2026-10-01 Dropdown for setting the card as checked/unchecked. +main-project @done
+x 2026-10-01 Make it look more the makesprite/concrete.css theme. +main-project @done
+x 2026-10-01 When moving between columns don't insert an extra newline before, unless moving to an empty column. +main-project @done
+x 2026-10-01 Give each column a max width of 450px and have them stretch to fill the area up to that. +main-project @done
+x 2026-10-01 Don't put carriage returns between individual TODO list items. As far as possible try to preserve original formatting, just moving individual lines around without disturbing other lines. +main-project @done
+x 2026-10-01 Ability to create a project on the projects select page, including if TODO.md is empty. +main-project @done
