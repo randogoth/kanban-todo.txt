@@ -904,7 +904,7 @@ chmod 755 kbtd.py
 
     <template id="source-copyright-template">
         <p><a href="https://code.randogoth.com/randogoth/kanban-todo.txt" target="_blank">Source code for self-hosting</a> - upload index.html to your server.</p>
-        <p>Copyright &copy; Chris McCormick 2025 (original idea and Markdown-based app).<br>todo.txt rewrite and further changes copyright &copy; randogoth 2026.</p>
+        <p>Copyright &copy; <a href="https://github.com/chr15m/kanban-todo" target="_blank">Chris McCormick</a> 2025 (original idea and Markdown-based app).<br>todo.txt rewrite and further changes copyright &copy; randogoth 2026.</p>
     </template>
 
     <div id="app">
@@ -1644,7 +1644,7 @@ chmod 755 kbtd.py
             } catch (err) {
                 console.error('Error writing file:', err);
                 if (err.conflict) {
-                    alert('This file changed on disk since it was loaded. Reloading the latest version — please redo your change.');
+                    alert('This file changed on disk since it was loaded. Reloading the latest version, please redo your change.');
                     await loadFile();
                 } else {
                     alert('Error saving file.');

@@ -368,7 +368,7 @@ def main(argv=None):
     if family:
         browser_process = launch_browser(family, binary, target_url, app_mode)
     else:
-        print("No browser auto-detected — open the URL above manually in any browser.")
+        print("No browser auto-detected. Open the URL above manually in any browser.")
 
     def shutdown():
         server.shutdown()
