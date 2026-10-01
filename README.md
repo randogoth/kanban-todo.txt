@@ -1,5 +1,8 @@
 # Kanban-TODO.TXT
 
+[![todo.txt](https://img.shields.io/badge/format-todo.txt-blue)](https://github.com/todotxt/todo.txt)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+
 A [todo.txt](https://github.com/todotxt/todo.txt) based kanban board in a single [index.html](./index.html) file.
 
 [Download index.html](https://code.randogoth.com/randogoth/kanban-todo.txt/raw/branch/main/index.html) | [Download Zip](https://code.randogoth.com/randogoth/kanban-todo.txt/archive/main.zip)
