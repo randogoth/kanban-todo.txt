@@ -51,6 +51,8 @@ chmod 755 kbtd.py
 
 `kbtd.py` runs a small local server (bound to `127.0.0.1`, guarded by a per-launch token) so the app can read and write your file through any browser, not just Chromium-based ones. It blocks in the foreground for the session: close the browser window or hit Ctrl-C to stop it.
 
+By default the port and token are random each launch, so the URL can't be bookmarked. Pass `--permanent` to reuse a fixed port/token for that file (stored under `~/.config/kbtd/sessions/`) and disable the idle shutdown, at the cost of the per-launch hardening described in `SPEC.md`.
+
 ## Global Install
 
 To run `kbtd` from any folder, [install.sh](./install.sh) installs `kbtd.py` and `index.html` together and symlinks the script onto your `PATH`:

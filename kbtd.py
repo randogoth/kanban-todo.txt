@@ -14,6 +14,7 @@ the user hits Ctrl-C.
 
 import argparse
 import hashlib
+import json
 import os
 import platform
 import secrets
@@ -50,6 +51,9 @@ def parse_args(argv):
     )
     parser.add_argument("--browser", action="store_true",
                          help="Open in existing browser instead of app mode")
+    parser.add_argument("--permanent", action="store_true",
+                         help="Reuse a fixed port/token for this file so the URL is "
+                              "bookmarkable; disables idle shutdown")
     parser.add_argument("--help", action="store_true", help="Show help message")
     parser.add_argument("file", nargs="?", help="Path to a todo.txt file")
 
@@ -82,6 +86,49 @@ def resolve_file_path(file_path):
         error_exit(f"File not found: {abs_path}")
 
     return abs_path
+
+
+# --- Permanent session persistence ---
+
+def session_file_path(abs_path):
+    config_home = Path(os.environ.get("XDG_CONFIG_HOME", "~/.config")).expanduser()
+    key = hashlib.sha256(str(abs_path).encode()).hexdigest()[:16]
+    return config_home / "kbtd" / "sessions" / f"{key}.json"
+
+
+def load_session(abs_path):
+    path = session_file_path(abs_path)
+    try:
+        data = json.loads(path.read_text())
+        return data["port"], data["token"]
+    except (FileNotFoundError, KeyError, ValueError):
+        return None, None
+
+
+def save_session(abs_path, port, token):
+    path = session_file_path(abs_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    os.chmod(path.parent, 0o700)
+
+    fd, tmp_path = tempfile.mkstemp(dir=str(path.parent), prefix=".session.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as tmp_file:
+            json.dump({"port": port, "token": token}, tmp_file)
+        os.chmod(tmp_path, 0o600)
+        os.replace(tmp_path, path)
+    except Exception:
+        os.unlink(tmp_path)
+        raise
+
+
+def probe_existing_kbtd(port):
+    """Returns True if a kbtd server is already answering on 127.0.0.1:port."""
+    try:
+        req = urllib.request.Request(f"http://127.0.0.1:{port}/")
+        with urllib.request.urlopen(req, timeout=2) as resp:
+            return resp.headers.get("Server", "").startswith("kbtd/")
+    except (urllib.error.URLError, OSError):
+        return False
 
 
 # --- Browser detection ---
@@ -334,6 +381,33 @@ def run_idle_watchdog(server, timeout_seconds):
 
 # --- Main ---
 
+def start_server(abs_path, html_bytes, args):
+    """Returns (server_or_None, port, token, reused_existing)."""
+    stored_port, stored_token = load_session(abs_path) if args.permanent else (None, None)
+
+    if stored_port is None:
+        token = secrets.token_urlsafe(24)
+        handler_cls = make_handler(abs_path, html_bytes, token)
+        server = KbtdServer(("127.0.0.1", 0), handler_cls)
+        port = server.server_address[1]
+        if args.permanent:
+            save_session(abs_path, port, token)
+        return server, port, token, False
+
+    handler_cls = make_handler(abs_path, html_bytes, stored_token)
+    try:
+        server = KbtdServer(("127.0.0.1", stored_port), handler_cls)
+    except OSError:
+        if not probe_existing_kbtd(stored_port):
+            error_exit(
+                f"Port {stored_port} from {session_file_path(abs_path)} is in use by "
+                "another process. Stop it, delete that file, or rerun without --permanent."
+            )
+        return None, stored_port, stored_token, True
+
+    return server, stored_port, stored_token, False
+
+
 def main(argv=None):
     sys.stdout.reconfigure(line_buffering=True)
     args = parse_args(sys.argv[1:] if argv is None else argv)
@@ -343,24 +417,26 @@ def main(argv=None):
     base_url = os.environ.get("KBTD_URL", "https://mccormick.cx/apps/kanban-todo")
     html_bytes = load_index_html(base_url)
 
-    token = secrets.token_urlsafe(24)
-    handler_cls = make_handler(abs_path, html_bytes, token)
-    server = KbtdServer(("127.0.0.1", 0), handler_cls)
-    port = server.server_address[1]
+    server, port, token, reused_existing = start_server(abs_path, html_bytes, args)
 
-    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
-    server_thread.start()
+    server_thread = None
+    if server is not None:
+        server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+        server_thread.start()
 
-    watchdog_thread = threading.Thread(
-        target=run_idle_watchdog, args=(server, IDLE_TIMEOUT_SECONDS), daemon=True
-    )
-    watchdog_thread.start()
+        if not args.permanent:
+            watchdog_thread = threading.Thread(
+                target=run_idle_watchdog, args=(server, IDLE_TIMEOUT_SECONDS), daemon=True
+            )
+            watchdog_thread.start()
 
     encoded_path = urllib.parse.quote(str(abs_path))
     target_url = f"http://127.0.0.1:{port}/?file={encoded_path}&token={token}"
 
     print(f"Serving {abs_path}")
     print(f"URL: {target_url}")
+    if reused_existing:
+        print("Reusing the --permanent session already running for this file.")
 
     family, binary = find_browser()
     app_mode = not args.browser
@@ -374,13 +450,22 @@ def main(argv=None):
         server.shutdown()
         server_thread.join(timeout=5)
 
+    if reused_existing:
+        # The other launch owns this server's lifecycle; nothing to block on here.
+        if app_mode and browser_process:
+            browser_process.wait()
+        return
+
     try:
         if app_mode and browser_process:
             browser_process.wait()
             shutdown()
         else:
-            print(f"Server running on 127.0.0.1:{port}; shuts down after "
-                  f"{IDLE_TIMEOUT_SECONDS // 60} min idle.")
+            idle_note = (
+                "" if args.permanent
+                else f"; shuts down after {IDLE_TIMEOUT_SECONDS // 60} min idle"
+            )
+            print(f"Server running on 127.0.0.1:{port}{idle_note}.")
             server_thread.join()
     except KeyboardInterrupt:
         shutdown()

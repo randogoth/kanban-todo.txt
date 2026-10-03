@@ -92,6 +92,7 @@ kbtd.py [OPTIONS] <path-to-todo.txt-file>
 
 Options:
   --browser    Open in existing browser instead of app mode
+  --permanent  Reuse a fixed port/token for this file; disables idle shutdown
   --help       Show help message
 ```
 
@@ -99,9 +100,9 @@ Options:
 
 1. Resolve the todo.txt file path to an absolute path, creating it if missing (and its parent directory exists)
 2. Load `index.html`: if a copy sits next to `kbtd.py` itself (e.g. a repo checkout), read it directly. Otherwise fetch it from `$KBTD_URL` (default: the public hosted copy, accepts either a directory or a full URL ending in `.html`). Fails with a clear error if unreachable
-3. Start a loopback HTTP server on `127.0.0.1` (OS-assigned port), guarded by a per-launch random token, and print its URL
+3. Start a loopback HTTP server on `127.0.0.1` (OS-assigned port), guarded by a per-launch random token, and print its URL. With `--permanent`, reuse the port/token persisted for this file in `~/.config/kbtd/sessions/` instead (creating that session on first use), or detect and reuse an already-running `--permanent` instance for the same file rather than binding a second server
 4. Locate a browser (Chromium family, Firefox, or Safari) and launch it pointed at `http://127.0.0.1:{port}/?file={absolute_path}&token={token}`. If none is auto-detected, this is **not fatal**. The server keeps running and the printed URL can be opened manually in any browser
-5. Block in the foreground: in `--app` mode (with a detected browser), until that browser window closes. Otherwise, until the server idles out (10 minutes with no `/file` requests) or Ctrl-C
+5. Block in the foreground: in `--app` mode (with a detected browser), until that browser window closes. Otherwise, until the server idles out (10 minutes with no `/file` requests, skipped with `--permanent`) or Ctrl-C
 
 ### Server Endpoints
 
@@ -122,6 +123,7 @@ Threat model is other local processes/pages on the same machine, not remote atta
 - `GET /` is intentionally unauthenticated (static public markup, also the only route reachable before the token is known, since it arrives in that page's own URL)
 - Random OS-assigned port per launch, plus the idle-timeout shutdown, bound the window during which a port-scan-plus-token-guess is relevant
 - Not defended against (accepted): another process running as the *same OS user* reading the token from `ps aux` or browser history. The file's absolute path is exposed the same way already, via the URL and the browser's own argv
+- `--permanent` is opt-in and trades away the two bullets above: the port and token are persisted per-file in `~/.config/kbtd/sessions/<hash>.json` (`0600`, directory `0700`) and reused across launches instead of regenerated, and the idle-timeout shutdown is skipped. The token becomes a long-lived secret on disk rather than a short-lived in-memory one for the run's duration
 
 ### Browser Detection
 
